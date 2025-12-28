@@ -1,0 +1,22 @@
+{
+  "name": "Campionato Arena 2026",
+  "short_name": "Arena 2026",
+  "description": "Gestione del campionato calcistico Arena 2026",
+  "start_url": "index.html",
+  "display": "standalone",
+  "background_color": "#0c2461",
+  "theme_color": "#0c2461",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
