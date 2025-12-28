@@ -689,7 +689,30 @@
             padding-top: calc(12px + env(safe-area-inset-top, 0px));
         }
         
+        /* MIGLIORAMENTI PER MOBILE */
         @media (max-width: 768px) {
+            input, select, textarea {
+                font-size: 16px !important; /* Previene zoom iOS */
+            }
+            
+            button, .user-btn, .tab-btn {
+                min-height: 44px; /* Dimensione touch minima */
+                min-width: 44px;
+            }
+            
+            /* Previene il refresh su drag */
+            body {
+                overscroll-behavior: contain;
+                -webkit-overflow-scrolling: touch;
+            }
+            
+            /* Migliora la visualizzazione modali */
+            .modal-content {
+                width: 95% !important;
+                max-height: 85vh !important;
+                padding: 20px !important;
+            }
+            
             .tabs {
                 flex-direction: row;
                 overflow-x: auto;
@@ -820,7 +843,12 @@
                 <i class="fas fa-user"></i> Accesso non effettuato
             </span>
         </div>
-        <div style="display: flex; align-items: center; gap: 20px;">
+        <div style="display: flex; align-items: center; gap: 15px;">
+            <!-- PULSANTE SALVA ORA -->
+            <button onclick="forzaSalvataggio()" class="btn-secondary" style="padding: 8px 15px;">
+                <i class="fas fa-save"></i> Salva Ora
+            </button>
+            
             <span id="userRole"></span>
             <button onclick="logout()" class="logout-btn">
                 <i class="fas fa-sign-out-alt"></i> Logout
@@ -1228,6 +1256,141 @@ function updateLoginScreen() {
         `;
     }
 }
+
+// ====================
+// SALVATAGGIO MIGLIORATO PER MOBILE
+// ====================
+
+function saveToLocalStorage() {
+    try {
+        const data = {
+            squadre: database.squadre,
+            players: database.players,
+            playerSquadra: database.playerSquadra,
+            partite: database.partite,
+            statistichePartite: database.statistichePartite,
+            timestamp: new Date().toISOString()
+        };
+        
+        // Prova prima localStorage
+        localStorage.setItem('campionatoArenaDB', JSON.stringify(data));
+        console.log('✅ Dati salvati in localStorage');
+        
+        // Backup in sessionStorage
+        sessionStorage.setItem('campionatoBackup', JSON.stringify(data));
+        
+        // Notifica all'utente (opzionale)
+        if ('Notification' in window && Notification.permission === 'granted') {
+            new Notification('Dati salvati!', {
+                body: 'I dati sono stati salvati correttamente',
+                icon: 'icon-192.png'
+            });
+        }
+        
+        return true;
+    } catch (error) {
+        console.error('❌ Errore salvataggio:', error);
+        
+        // Fallback: usa IndexedDB
+        if (window.indexedDB) {
+            saveToIndexedDB();
+        }
+        
+        alert('Attenzione: potrebbero esserci problemi con il salvataggio dati. Prova a usare la modalità normale (non incognito).');
+        return false;
+    }
+}
+
+function forzaSalvataggio() {
+    if (saveToLocalStorage()) {
+        // Mostra feedback visivo
+        const btn = event.target;
+        btn.innerHTML = '<i class="fas fa-check"></i> Salvato!';
+        btn.style.background = '#27ae60';
+        
+        setTimeout(() => {
+            btn.innerHTML = '<i class="fas fa-save"></i> Salva Ora';
+            btn.style.background = '';
+        }, 2000);
+        
+        alert('Dati salvati con successo!');
+    }
+}
+
+// Versione migliorata di loadFromLocalStorage
+function loadFromLocalStorage() {
+    try {
+        const saved = localStorage.getItem('campionatoArenaDB');
+        if (saved) {
+            const parsed = JSON.parse(saved);
+            database.squadre = parsed.squadre || database.squadre;
+            database.players = parsed.players || database.players;
+            database.playerSquadra = parsed.playerSquadra || database.playerSquadra;
+            database.partite = parsed.partite || [];
+            database.statistichePartite = parsed.statistichePartite || {};
+            console.log('✅ Dati caricati da localStorage');
+            return true;
+        }
+    } catch (error) {
+        console.error('❌ Errore caricamento:', error);
+        
+        // Prova sessionStorage
+        try {
+            const backup = sessionStorage.getItem('campionatoBackup');
+            if (backup) {
+                const parsed = JSON.parse(backup);
+                database.squadre = parsed.squadre || database.squadre;
+                database.players = parsed.players || database.players;
+                database.playerSquadra = parsed.playerSquadra || database.playerSquadra;
+                database.partite = parsed.partite || [];
+                database.statistichePartite = parsed.statistichePartite || {};
+                console.log('✅ Dati caricati da backup sessionStorage');
+            }
+        } catch (e) {
+            console.error('❌ Errore backup:', e);
+        }
+    }
+    return false;
+}
+
+// IndexedDB fallback
+function saveToIndexedDB() {
+    if (!window.indexedDB) return;
+    
+    const request = indexedDB.open('CampionatoArenaDB', 1);
+    
+    request.onupgradeneeded = function(event) {
+        const db = event.target.result;
+        if (!db.objectStoreNames.contains('dati')) {
+            db.createObjectStore('dati');
+        }
+    };
+    
+    request.onsuccess = function(event) {
+        const db = event.target.result;
+        const transaction = db.transaction(['dati'], 'readwrite');
+        const store = transaction.objectStore('dati');
+        
+        const data = {
+            squadre: database.squadre,
+            players: database.players,
+            playerSquadra: database.playerSquadra,
+            partite: database.partite,
+            statistichePartite: database.statistichePartite,
+            timestamp: new Date().toISOString()
+        };
+        
+        store.put(data, 'campionatoData');
+        console.log('✅ Dati salvati in IndexedDB (fallback)');
+    };
+}
+
+// Salvataggio automatico ogni 30 secondi
+setInterval(() => {
+    if (database.currentUser) {
+        saveToLocalStorage();
+    }
+}, 30000);
 
 // ====================
 // INIZIALIZZAZIONE APP
@@ -2808,32 +2971,6 @@ function showClassifica(tipo) {
             
             container.innerHTML = htmlCartellini;
             break;
-    }
-}
-
-// ====================
-// SALVATAGGIO DATI
-// ====================
-
-function saveToLocalStorage() {
-    localStorage.setItem('campionatoArenaDB', JSON.stringify({
-        squadre: database.squadre,
-        players: database.players,
-        playerSquadra: database.playerSquadra,
-        partite: database.partite,
-        statistichePartite: database.statistichePartite
-    }));
-}
-
-function loadFromLocalStorage() {
-    const saved = localStorage.getItem('campionatoArenaDB');
-    if (saved) {
-        const parsed = JSON.parse(saved);
-        database.squadre = parsed.squadre || database.squadre;
-        database.players = parsed.players || database.players;
-        database.playerSquadra = parsed.playerSquadra || database.playerSquadra;
-        database.partite = parsed.partite || [];
-        database.statistichePartite = parsed.statistichePartite || {};
     }
 }
 
