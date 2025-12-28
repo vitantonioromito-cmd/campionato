@@ -1052,15 +1052,16 @@
 
 <script>
 // ====================
-// CONFIGURAZIONE FIREBASE (SOSTITUISCI QUESTI VALORI!)
+// CONFIGURAZIONE FIREBASE CON I TUOI DATI
 // ====================
 const firebaseConfig = {
     apiKey: "AIzaSyDZhOEHZcHELj_wy1gmCqX8-8zPQe0WcMk",
-  authDomain: "campionato-arena-2026.firebaseapp.com",
-  projectId: "campionato-arena-2026",
-  storageBucket: "campionato-arena-2026.firebasestorage.app",
-  messagingSenderId: "844668143316",
-  appId: "1:844668143316:web:c72cb60c6e3513582f5d41"
+    authDomain: "campionato-arena-2026.firebaseapp.com",
+    databaseURL: "https://campionato-arena-2026-default-rtdb.europe-west1.firebasedatabase.app",
+    projectId: "campionato-arena-2026",
+    storageBucket: "campionato-arena-2026.appspot.com",
+    messagingSenderId: "844668143316",
+    appId: "1:844668143316:web:c72cb60c6e3513582f5d41"
 };
 
 // Inizializza Firebase
@@ -2203,7 +2204,7 @@ function updatePartiteView() {
         `;
         
         container.appendChild(giornataDiv);
-    }
+    });
 }
 
 function updateRisultatiView() {
