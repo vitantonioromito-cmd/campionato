@@ -7,17 +7,15 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Arena 2026">
-    <link rel="manifest" href="manifest.json">
-    <link rel="icon" href="icon-192.png">
-    <!-- META TAG PWA -->
-    <meta name="theme-color" content="#0c2461">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="Arena 2026">
     <meta name="description" content="Gestione Campionato Arena 2026 - PWA">
     <meta name="mobile-web-app-capable" content="yes">
     <title>Campionato Arena 2026</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- FIREBASE -->
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database.js"></script>
+    
     <style>
         * {
             margin: 0;
@@ -692,21 +690,19 @@
         /* MIGLIORAMENTI PER MOBILE */
         @media (max-width: 768px) {
             input, select, textarea {
-                font-size: 16px !important; /* Previene zoom iOS */
+                font-size: 16px !important;
             }
             
             button, .user-btn, .tab-btn {
-                min-height: 44px; /* Dimensione touch minima */
+                min-height: 44px;
                 min-width: 44px;
             }
             
-            /* Previene il refresh su drag */
             body {
                 overscroll-behavior: contain;
                 -webkit-overflow-scrolling: touch;
             }
             
-            /* Migliora la visualizzazione modali */
             .modal-content {
                 width: 95% !important;
                 max-height: 85vh !important;
@@ -843,10 +839,16 @@
                 <i class="fas fa-user"></i> Accesso non effettuato
             </span>
         </div>
-        <div style="display: flex; align-items: center; gap: 15px;">
-            <!-- PULSANTE SALVA ORA -->
+        <div style="display: flex; align-items: center; gap: 10px;">
+            <!-- PULSANTE SALVA LOCALE -->
             <button onclick="forzaSalvataggio()" class="btn-secondary" style="padding: 8px 15px;">
-                <i class="fas fa-save"></i> Salva Ora
+                <i class="fas fa-save"></i> Salva
+            </button>
+            
+            <!-- PULSANTE SINCRONIZZA FIREBASE -->
+            <button onclick="forzaSincronizzazione()" class="btn-secondary" 
+                    style="padding: 8px 15px; background: #3498db;">
+                <i class="fas fa-sync-alt"></i> Sincronizza
             </button>
             
             <span id="userRole"></span>
@@ -1050,7 +1052,32 @@
 
 <script>
 // ====================
-// DATABASE
+// CONFIGURAZIONE FIREBASE (SOSTITUISCI QUESTI VALORI!)
+// ====================
+const firebaseConfig = {
+    apiKey: "AIzaSyDZhOEHZcHELj_wy1gmCqX8-8zPQe0WcMk",
+  authDomain: "campionato-arena-2026.firebaseapp.com",
+  projectId: "campionato-arena-2026",
+  storageBucket: "campionato-arena-2026.firebasestorage.app",
+  messagingSenderId: "844668143316",
+  appId: "1:844668143316:web:c72cb60c6e3513582f5d41"
+};
+
+// Inizializza Firebase
+let databaseRef = null;
+try {
+    if (!firebase.apps.length) {
+        firebase.initializeApp(firebaseConfig);
+    }
+    databaseRef = firebase.database();
+    console.log('✅ Firebase inizializzato correttamente');
+} catch (error) {
+    console.error('❌ Errore inizializzazione Firebase:', error);
+    console.log('⚠️ L\'app funzionerà solo in modalità locale');
+}
+
+// ====================
+// DATABASE LOCALE
 // ====================
 let database = {
     currentUser: null,
@@ -1077,6 +1104,135 @@ let database = {
     partite: [],
     statistichePartite: {}
 };
+
+// ====================
+// FUNZIONI FIREBASE
+// ====================
+
+function saveToFirebase() {
+    if (!databaseRef) {
+        console.log('⚠️ Firebase non configurato');
+        return Promise.resolve(false);
+    }
+    
+    const data = {
+        squadre: database.squadre,
+        players: database.players,
+        playerSquadra: database.playerSquadra,
+        partite: database.partite,
+        statistichePartite: database.statistichePartite,
+        lastUpdate: firebase.database.ServerValue.TIMESTAMP,
+        updatedBy: database.currentUser || 'unknown',
+        timestamp: new Date().toISOString()
+    };
+    
+    return databaseRef.ref('campionatoArena').set(data)
+        .then(() => {
+            console.log('✅ Dati salvati su Firebase');
+            return true;
+        })
+        .catch(error => {
+            console.error('❌ Errore Firebase:', error);
+            return false;
+        });
+}
+
+function loadFromFirebase() {
+    if (!databaseRef) {
+        console.log('⚠️ Firebase non configurato');
+        return Promise.resolve(false);
+    }
+    
+    return databaseRef.ref('campionatoArena').once('value')
+        .then(snapshot => {
+            const data = snapshot.val();
+            if (data) {
+                console.log('📥 Dati ricevuti da Firebase');
+                
+                const currentUserBackup = database.currentUser;
+                const isAdminBackup = database.isAdmin;
+                const selectedAdminBackup = database.selectedAdmin;
+                
+                database.squadre = data.squadre || database.squadre;
+                database.players = data.players || database.players;
+                database.playerSquadra = data.playerSquadra || database.playerSquadra;
+                database.partite = data.partite || [];
+                database.statistichePartite = data.statistichePartite || {};
+                
+                database.currentUser = currentUserBackup;
+                database.isAdmin = isAdminBackup;
+                database.selectedAdmin = selectedAdminBackup;
+                
+                localStorage.setItem('campionatoArenaDB', JSON.stringify({
+                    squadre: database.squadre,
+                    players: database.players,
+                    playerSquadra: database.playerSquadra,
+                    partite: database.partite,
+                    statistichePartite: database.statistichePartite,
+                    timestamp: data.timestamp
+                }));
+                
+                return true;
+            }
+            return false;
+        })
+        .catch(error => {
+            console.error('❌ Errore caricamento Firebase:', error);
+            return false;
+        });
+}
+
+function setupFirebaseRealtimeUpdates() {
+    if (!databaseRef) {
+        console.log('⚠️ Firebase non configurato');
+        return;
+    }
+    
+    databaseRef.ref('campionatoArena').on('value', snapshot => {
+        const data = snapshot.val();
+        if (data && data.lastUpdate) {
+            const localTimestamp = localStorage.getItem('lastFirebaseUpdate') || 0;
+            
+            if (data.lastUpdate > localTimestamp) {
+                console.log('🔄 Aggiornamento in tempo reale ricevuto');
+                localStorage.setItem('lastFirebaseUpdate', data.lastUpdate);
+                
+                const currentUserBackup = database.currentUser;
+                const isAdminBackup = database.isAdmin;
+                
+                database.squadre = data.squadre || database.squadre;
+                database.players = data.players || database.players;
+                database.playerSquadra = data.playerSquadra || database.playerSquadra;
+                database.partite = data.partite || [];
+                database.statistichePartite = data.statistichePartite || {};
+                
+                database.currentUser = currentUserBackup;
+                database.isAdmin = isAdminBackup;
+                
+                updateAllViews();
+                
+                if (database.currentUser) {
+                    showNotification('📱 Dati aggiornati', 'Nuove modifiche da altri dispositivi');
+                }
+            }
+        }
+    });
+}
+
+function forzaSincronizzazione() {
+    if (!databaseRef) {
+        alert('⚠️ Firebase non configurato.\nConfigura Firebase per sincronizzare tra dispositivi.');
+        return;
+    }
+    
+    saveToFirebase().then(success => {
+        if (success) {
+            alert('✅ Dati sincronizzati con successo!\nTutti i dispositivi vedranno le modifiche.');
+        } else {
+            alert('❌ Errore di sincronizzazione.\nI dati sono salvati solo in locale.');
+        }
+    });
+}
 
 // ====================
 // FUNZIONI DI UTILITÀ
@@ -1258,7 +1414,7 @@ function updateLoginScreen() {
 }
 
 // ====================
-// SALVATAGGIO MIGLIORATO PER MOBILE
+// SALVATAGGIO E CARICAMENTO
 // ====================
 
 function saveToLocalStorage() {
@@ -1272,53 +1428,41 @@ function saveToLocalStorage() {
             timestamp: new Date().toISOString()
         };
         
-        // Prova prima localStorage
         localStorage.setItem('campionatoArenaDB', JSON.stringify(data));
-        console.log('✅ Dati salvati in localStorage');
+        console.log('✅ Dati salvati in locale');
         
-        // Backup in sessionStorage
-        sessionStorage.setItem('campionatoBackup', JSON.stringify(data));
-        
-        // Notifica all'utente (opzionale)
-        if ('Notification' in window && Notification.permission === 'granted') {
-            new Notification('Dati salvati!', {
-                body: 'I dati sono stati salvati correttamente',
-                icon: 'icon-192.png'
-            });
+        if (databaseRef) {
+            setTimeout(() => {
+                saveToFirebase().then(success => {
+                    if (success) {
+                        console.log('🔄 Sincronizzazione completata');
+                    }
+                });
+            }, 100);
         }
         
         return true;
     } catch (error) {
         console.error('❌ Errore salvataggio:', error);
-        
-        // Fallback: usa IndexedDB
-        if (window.indexedDB) {
-            saveToIndexedDB();
-        }
-        
-        alert('Attenzione: potrebbero esserci problemi con il salvataggio dati. Prova a usare la modalità normale (non incognito).');
         return false;
     }
 }
 
-function forzaSalvataggio() {
-    if (saveToLocalStorage()) {
-        // Mostra feedback visivo
-        const btn = event.target;
-        btn.innerHTML = '<i class="fas fa-check"></i> Salvato!';
-        btn.style.background = '#27ae60';
-        
-        setTimeout(() => {
-            btn.innerHTML = '<i class="fas fa-save"></i> Salva Ora';
-            btn.style.background = '';
-        }, 2000);
-        
-        alert('Dati salvati con successo!');
+async function loadFromLocalStorage() {
+    console.log('🔄 Caricamento dati in corso...');
+    
+    if (databaseRef) {
+        try {
+            const firebaseLoaded = await loadFromFirebase();
+            if (firebaseLoaded) {
+                console.log('✅ Dati caricati da Firebase');
+                return;
+            }
+        } catch (error) {
+            console.log('Firebase non disponibile, uso dati locali');
+        }
     }
-}
-
-// Versione migliorata di loadFromLocalStorage
-function loadFromLocalStorage() {
+    
     try {
         const saved = localStorage.getItem('campionatoArenaDB');
         if (saved) {
@@ -1329,68 +1473,24 @@ function loadFromLocalStorage() {
             database.partite = parsed.partite || [];
             database.statistichePartite = parsed.statistichePartite || {};
             console.log('✅ Dati caricati da localStorage');
-            return true;
         }
     } catch (error) {
-        console.error('❌ Errore caricamento:', error);
-        
-        // Prova sessionStorage
-        try {
-            const backup = sessionStorage.getItem('campionatoBackup');
-            if (backup) {
-                const parsed = JSON.parse(backup);
-                database.squadre = parsed.squadre || database.squadre;
-                database.players = parsed.players || database.players;
-                database.playerSquadra = parsed.playerSquadra || database.playerSquadra;
-                database.partite = parsed.partite || [];
-                database.statistichePartite = parsed.statistichePartite || {};
-                console.log('✅ Dati caricati da backup sessionStorage');
-            }
-        } catch (e) {
-            console.error('❌ Errore backup:', e);
-        }
+        console.error('❌ Errore caricamento locale:', error);
     }
-    return false;
 }
 
-// IndexedDB fallback
-function saveToIndexedDB() {
-    if (!window.indexedDB) return;
-    
-    const request = indexedDB.open('CampionatoArenaDB', 1);
-    
-    request.onupgradeneeded = function(event) {
-        const db = event.target.result;
-        if (!db.objectStoreNames.contains('dati')) {
-            db.createObjectStore('dati');
-        }
-    };
-    
-    request.onsuccess = function(event) {
-        const db = event.target.result;
-        const transaction = db.transaction(['dati'], 'readwrite');
-        const store = transaction.objectStore('dati');
+function forzaSalvataggio() {
+    if (saveToLocalStorage()) {
+        const btn = event.target;
+        btn.innerHTML = '<i class="fas fa-check"></i> Salvato!';
+        btn.style.background = '#27ae60';
         
-        const data = {
-            squadre: database.squadre,
-            players: database.players,
-            playerSquadra: database.playerSquadra,
-            partite: database.partite,
-            statistichePartite: database.statistichePartite,
-            timestamp: new Date().toISOString()
-        };
-        
-        store.put(data, 'campionatoData');
-        console.log('✅ Dati salvati in IndexedDB (fallback)');
-    };
-}
-
-// Salvataggio automatico ogni 30 secondi
-setInterval(() => {
-    if (database.currentUser) {
-        saveToLocalStorage();
+        setTimeout(() => {
+            btn.innerHTML = '<i class="fas fa-save"></i> Salva';
+            btn.style.background = '';
+        }, 2000);
     }
-}, 30000);
+}
 
 // ====================
 // INIZIALIZZAZIONE APP
@@ -1550,6 +1650,18 @@ document.addEventListener('DOMContentLoaded', function() {
     updateSquadreSelect();
     updatePartiteView();
     updateRisultatiView();
+    
+    // Setup Firebase
+    setupFirebaseRealtimeUpdates();
+    
+    // Sincronizza all'avvio
+    setTimeout(() => {
+        if (database.currentUser) {
+            loadFromFirebase().then(loaded => {
+                if (loaded) updateAllViews();
+            });
+        }
+    }, 2000);
 });
 
 // ====================
@@ -1989,239 +2101,6 @@ function updateSquadreSelect() {
     aggiornaSelect(selectPartecipanti);
 }
 
-// ====================
-// FUNZIONI PER PARTITE E RISULTATI
-// ====================
-
-function calcolaClassificaSquadre() {
-    const statsSquadre = {};
-    
-    database.squadre.forEach(squadra => {
-        statsSquadre[squadra.id] = {
-            nome: squadra.nome,
-            colore: squadra.colore,
-            partiteGiocate: 0,
-            vinte: 0,
-            pareggiate: 0,
-            perse: 0,
-            golFatti: 0,
-            golSubiti: 0,
-            punti: 0
-        };
-    });
-    
-    database.partite.filter(p => p.completata).forEach(partita => {
-        const squadraCasa = statsSquadre[partita.squadraCasa];
-        const squadraTrasferta = statsSquadre[partita.squadraTrasferta];
-        
-        if (squadraCasa && squadraTrasferta) {
-            squadraCasa.partiteGiocate++;
-            squadraTrasferta.partiteGiocate++;
-            squadraCasa.golFatti += partita.golCasa;
-            squadraCasa.golSubiti += partita.golTrasferta;
-            squadraTrasferta.golFatti += partita.golTrasferta;
-            squadraTrasferta.golSubiti += partita.golCasa;
-            
-            if (partita.golCasa > partita.golTrasferta) {
-                squadraCasa.vinte++;
-                squadraCasa.punti += 3;
-                squadraTrasferta.perse++;
-            } else if (partita.golCasa < partita.golTrasferta) {
-                squadraTrasferta.vinte++;
-                squadraTrasferta.punti += 3;
-                squadraCasa.perse++;
-            } else {
-                squadraCasa.pareggiate++;
-                squadraTrasferta.pareggiate++;
-                squadraCasa.punti += 1;
-                squadraTrasferta.punti += 1;
-            }
-        }
-    });
-    
-    return Object.values(statsSquadre)
-        .sort((a, b) => {
-            if (b.punti !== a.punti) return b.punti - a.punti;
-            if ((b.golFatti - b.golSubiti) !== (a.golFatti - a.golSubiti)) 
-                return (b.golFatti - b.golSubiti) - (a.golFatti - a.golSubiti);
-            return b.golFatti - a.golFatti;
-        });
-}
-
-function inserisciRisultato(partitaId) {
-    if (!database.isAdmin) {
-        alert('Solo gli amministratori possono inserire risultati!');
-        return;
-    }
-    
-    const partita = database.partite.find(p => p.id === partitaId);
-    if (!partita) return;
-    
-    database.currentPartitaModifica = partitaId;
-    const squadraCasa = database.squadre.find(s => s.id === partita.squadraCasa);
-    const squadraTrasferta = database.squadre.find(s => s.id === partita.squadraTrasferta);
-    const modalContent = document.getElementById('risultatiModalContent');
-    
-    if (!database.statistichePartite[partitaId]) {
-        database.statistichePartite[partitaId] = { giocatori: {} };
-    }
-    
-    const stats = database.statistichePartite[partitaId];
-    
-    function creaStatisticheSquadra(squadra, isCasa) {
-        let html = `<h4><span class="team-colored" style="background-color: ${squadra.colore};">${squadra.nome}</span></h4>`;
-        
-        if (squadra.giocatori.length === 0) {
-            html += '<p style="color: #888; font-style: italic;">Nessun giocatore in questa squadra</p>';
-            return html;
-        }
-        
-        html += '<div class="stats-grid">';
-        
-        squadra.giocatori.forEach(giocatore => {
-            if (!stats.giocatori[giocatore]) {
-                stats.giocatori[giocatore] = { gol: 0, assist: 0, gialli: 0, rossi: 0 };
-            }
-            
-            const giocatoreStats = stats.giocatori[giocatore];
-            const isAdmin = Object.keys(database.adminPasswords).includes(giocatore);
-            const isCaptain = squadra.capitano === giocatore;
-            const isGoalkeeper = squadra.portiere === giocatore;
-            const playerColor = getPlayerColor(giocatore);
-            
-            html += `
-                <div class="stats-card" style="border-left-color: ${playerColor};">
-                    <h5 style="margin-bottom: 10px;">
-                        <i class="fas fa-user${isAdmin ? '-crown admin-icon' : ''}"></i> 
-                        <span class="player-colored" style="background-color: ${playerColor};">
-                            ${giocatore}
-                            ${isCaptain ? ' <span class="captain-badge">(C)</span>' : ''}
-                            ${isGoalkeeper ? ' <span class="portiere-badge">(P)</span>' : ''}
-                        </span>
-                    </h5>
-                    
-                    <div class="player-stats-row">
-                        <span>Gol:</span>
-                        <input type="number" min="0" class="stat-input" 
-                               value="${giocatoreStats.gol}"
-                               onchange="aggiornaStatistica('${giocatore}', 'gol', this.value)">
-                    </div>
-                    
-                    <div class="player-stats-row">
-                        <span>Assist:</span>
-                        <input type="number" min="0" class="stat-input" 
-                               value="${giocatoreStats.assist}"
-                               onchange="aggiornaStatistica('${giocatore}', 'assist', this.value)">
-                    </div>
-                    
-                    <div class="player-stats-row">
-                        <span>Ammonizioni:</span>
-                        <input type="number" min="0" max="2" class="stat-input" 
-                               value="${giocatoreStats.gialli}"
-                               onchange="aggiornaStatistica('${giocatore}', 'gialli', this.value)">
-                    </div>
-                    
-                    <div class="player-stats-row">
-                        <span>Espulsioni:</span>
-                        <input type="number" min="0" max="1" class="stat-input" 
-                               value="${giocatoreStats.rossi}"
-                               onchange="aggiornaStatistica('${giocatore}', 'rossi', this.value)">
-                    </div>
-                </div>
-            `;
-        });
-        
-        html += '</div>';
-        return html;
-    }
-    
-    modalContent.innerHTML = `
-        <div style="margin-bottom: 20px;">
-            <h4 style="color: #0c2461; margin-bottom: 15px;">
-                <i class="fas fa-futbol"></i> ${formatTeamNameWithColor(partita.squadraCasa)} vs ${formatTeamNameWithColor(partita.squadraTrasferta)}
-            </h4>
-            <div style="color: #666; margin-bottom: 20px;">
-                Giornata ${partita.giornata} - ${new Date(partita.data).toLocaleDateString('it-IT')}
-            </div>
-            
-            <div style="display: grid; grid-template-columns: 1fr auto 1fr; gap: 20px; align-items: center; margin-bottom: 30px;">
-                <div style="text-align: center;">
-                    <div class="team-colored" style="background-color: ${partita.coloreCasa}; margin-bottom: 10px; font-weight: bold;">
-                        ${squadraCasa.nome}
-                    </div>
-                    <input type="number" id="golCasaInput" min="0" 
-                           value="${partita.golCasa !== null ? partita.golCasa : ''}"
-                           style="width: 80px; padding: 10px; text-align: center; font-size: 24px; border: 2px solid ${partita.coloreCasa}; border-radius: 8px;">
-                </div>
-                
-                <div style="text-align: center; font-size: 36px; color: #0c2461; font-weight: bold;">
-                    -
-                </div>
-                
-                <div style="text-align: center;">
-                    <div class="team-colored" style="background-color: ${partita.coloreTrasferta}; margin-bottom: 10px; font-weight: bold;">
-                        ${squadraTrasferta.nome}
-                    </div>
-                    <input type="number" id="golTrasfertaInput" min="0" 
-                           value="${partita.golTrasferta !== null ? partita.golTrasferta : ''}"
-                           style="width: 80px; padding: 10px; text-align: center; font-size: 24px; border: 2px solid ${partita.coloreTrasferta}; border-radius: 8px;">
-                </div>
-            </div>
-        </div>
-        
-        <div style="margin-bottom: 30px;">
-            <h4><i class="fas fa-chart-bar"></i> Statistiche Giocatori</h4>
-            <div style="background: #f8f9fa; padding: 20px; border-radius: 10px;">
-                <h5>Squadra Casa: ${formatTeamNameWithColor(partita.squadraCasa)}</h5>
-                ${creaStatisticheSquadra(squadraCasa, true)}
-                
-                <hr style="margin: 20px 0;">
-                
-                <h5>Squadra Trasferta: ${formatTeamNameWithColor(partita.squadraTrasferta)}</h5>
-                ${creaStatisticheSquadra(squadraTrasferta, false)}
-            </div>
-        </div>
-        
-        <div style="display: flex; gap: 10px; margin-top: 20px;">
-            <button onclick="salvaRisultato()" class="btn-primary" style="flex: 1;">
-                <i class="fas fa-save"></i> Salva Risultato e Statistiche
-            </button>
-            <button onclick="chiudiModale('risultatiModal')" class="btn-secondary" style="flex: 1;">
-                <i class="fas fa-times"></i> Annulla
-            </button>
-        </div>
-    `;
-    
-    document.getElementById('risultatiModal').style.display = 'flex';
-}
-
-function salvaRisultato() {
-    if (!database.currentPartitaModifica) return;
-    
-    const partitaId = database.currentPartitaModifica;
-    const partita = database.partite.find(p => p.id === partitaId);
-    if (!partita) return;
-    
-    const golCasa = parseInt(document.getElementById('golCasaInput').value) || 0;
-    const golTrasferta = parseInt(document.getElementById('golTrasfertaInput').value) || 0;
-    
-    partita.golCasa = golCasa;
-    partita.golTrasferta = golTrasferta;
-    partita.completata = true;
-    partita.statisticheInserite = true;
-    
-    saveToLocalStorage();
-    updatePartiteView();
-    updateRisultatiView();
-    chiudiModale('risultatiModal');
-    
-    if (document.getElementById('classifiche-tab').classList.contains('active')) {
-        showClassifica('squadre');
-    }
-    
-    alert('Risultato e statistiche salvati con successo!');
-}
-
 function updatePartiteView() {
     const container = document.getElementById('partiteContainer');
     if (!container) return;
@@ -2481,6 +2360,180 @@ function updateRisultatiView() {
     container.appendChild(risultatiGrid);
 }
 
+function inserisciRisultato(partitaId) {
+    if (!database.isAdmin) {
+        alert('Solo gli amministratori possono inserire risultati!');
+        return;
+    }
+    
+    const partita = database.partite.find(p => p.id === partitaId);
+    if (!partita) return;
+    
+    database.currentPartitaModifica = partitaId;
+    const squadraCasa = database.squadre.find(s => s.id === partita.squadraCasa);
+    const squadraTrasferta = database.squadre.find(s => s.id === partita.squadraTrasferta);
+    const modalContent = document.getElementById('risultatiModalContent');
+    
+    if (!database.statistichePartite[partitaId]) {
+        database.statistichePartite[partitaId] = { giocatori: {} };
+    }
+    
+    const stats = database.statistichePartite[partitaId];
+    
+    function creaStatisticheSquadra(squadra, isCasa) {
+        let html = `<h4><span class="team-colored" style="background-color: ${squadra.colore};">${squadra.nome}</span></h4>`;
+        
+        if (squadra.giocatori.length === 0) {
+            html += '<p style="color: #888; font-style: italic;">Nessun giocatore in questa squadra</p>';
+            return html;
+        }
+        
+        html += '<div class="stats-grid">';
+        
+        squadra.giocatori.forEach(giocatore => {
+            if (!stats.giocatori[giocatore]) {
+                stats.giocatori[giocatore] = { gol: 0, assist: 0, gialli: 0, rossi: 0 };
+            }
+            
+            const giocatoreStats = stats.giocatori[giocatore];
+            const isAdmin = Object.keys(database.adminPasswords).includes(giocatore);
+            const isCaptain = squadra.capitano === giocatore;
+            const isGoalkeeper = squadra.portiere === giocatore;
+            const playerColor = getPlayerColor(giocatore);
+            
+            html += `
+                <div class="stats-card" style="border-left-color: ${playerColor};">
+                    <h5 style="margin-bottom: 10px;">
+                        <i class="fas fa-user${isAdmin ? '-crown admin-icon' : ''}"></i> 
+                        <span class="player-colored" style="background-color: ${playerColor};">
+                            ${giocatore}
+                            ${isCaptain ? ' <span class="captain-badge">(C)</span>' : ''}
+                            ${isGoalkeeper ? ' <span class="portiere-badge">(P)</span>' : ''}
+                        </span>
+                    </h5>
+                    
+                    <div class="player-stats-row">
+                        <span>Gol:</span>
+                        <input type="number" min="0" class="stat-input" 
+                               value="${giocatoreStats.gol}"
+                               onchange="aggiornaStatistica('${giocatore}', 'gol', this.value)">
+                    </div>
+                    
+                    <div class="player-stats-row">
+                        <span>Assist:</span>
+                        <input type="number" min="0" class="stat-input" 
+                               value="${giocatoreStats.assist}"
+                               onchange="aggiornaStatistica('${giocatore}', 'assist', this.value)">
+                    </div>
+                    
+                    <div class="player-stats-row">
+                        <span>Ammonizioni:</span>
+                        <input type="number" min="0" max="2" class="stat-input" 
+                               value="${giocatoreStats.gialli}"
+                               onchange="aggiornaStatistica('${giocatore}', 'gialli', this.value)">
+                    </div>
+                    
+                    <div class="player-stats-row">
+                        <span>Espulsioni:</span>
+                        <input type="number" min="0" max="1" class="stat-input" 
+                               value="${giocatoreStats.rossi}"
+                               onchange="aggiornaStatistica('${giocatore}', 'rossi', this.value)">
+                    </div>
+                </div>
+            `;
+        });
+        
+        html += '</div>';
+        return html;
+    }
+    
+    modalContent.innerHTML = `
+        <div style="margin-bottom: 20px;">
+            <h4 style="color: #0c2461; margin-bottom: 15px;">
+                <i class="fas fa-futbol"></i> ${formatTeamNameWithColor(partita.squadraCasa)} vs ${formatTeamNameWithColor(partita.squadraTrasferta)}
+            </h4>
+            <div style="color: #666; margin-bottom: 20px;">
+                Giornata ${partita.giornata} - ${new Date(partita.data).toLocaleDateString('it-IT')}
+            </div>
+            
+            <div style="display: grid; grid-template-columns: 1fr auto 1fr; gap: 20px; align-items: center; margin-bottom: 30px;">
+                <div style="text-align: center;">
+                    <div class="team-colored" style="background-color: ${partita.coloreCasa}; margin-bottom: 10px; font-weight: bold;">
+                        ${squadraCasa.nome}
+                    </div>
+                    <input type="number" id="golCasaInput" min="0" 
+                           value="${partita.golCasa !== null ? partita.golCasa : ''}"
+                           style="width: 80px; padding: 10px; text-align: center; font-size: 24px; border: 2px solid ${partita.coloreCasa}; border-radius: 8px;">
+                </div>
+                
+                <div style="text-align: center; font-size: 36px; color: #0c2461; font-weight: bold;">
+                    -
+                </div>
+                
+                <div style="text-align: center;">
+                    <div class="team-colored" style="background-color: ${partita.coloreTrasferta}; margin-bottom: 10px; font-weight: bold;">
+                        ${squadraTrasferta.nome}
+                    </div>
+                    <input type="number" id="golTrasfertaInput" min="0" 
+                           value="${partita.golTrasferta !== null ? partita.golTrasferta : ''}"
+                           style="width: 80px; padding: 10px; text-align: center; font-size: 24px; border: 2px solid ${partita.coloreTrasferta}; border-radius: 8px;">
+                </div>
+            </div>
+        </div>
+        
+        <div style="margin-bottom: 30px;">
+            <h4><i class="fas fa-chart-bar"></i> Statistiche Giocatori</h4>
+            <div style="background: #f8f9fa; padding: 20px; border-radius: 10px;">
+                <h5>Squadra Casa: ${formatTeamNameWithColor(partita.squadraCasa)}</h5>
+                ${creaStatisticheSquadra(squadraCasa, true)}
+                
+                <hr style="margin: 20px 0;">
+                
+                <h5>Squadra Trasferta: ${formatTeamNameWithColor(partita.squadraTrasferta)}</h5>
+                ${creaStatisticheSquadra(squadraTrasferta, false)}
+            </div>
+        </div>
+        
+        <div style="display: flex; gap: 10px; margin-top: 20px;">
+            <button onclick="salvaRisultato()" class="btn-primary" style="flex: 1;">
+                <i class="fas fa-save"></i> Salva Risultato e Statistiche
+            </button>
+            <button onclick="chiudiModale('risultatiModal')" class="btn-secondary" style="flex: 1;">
+                <i class="fas fa-times"></i> Annulla
+            </button>
+        </div>
+    `;
+    
+    document.getElementById('risultatiModal').style.display = 'flex';
+}
+
+function salvaRisultato() {
+    if (!database.currentPartitaModifica) return;
+    
+    const partitaId = database.currentPartitaModifica;
+    const partita = database.partite.find(p => p.id === partitaId);
+    if (!partita) return;
+    
+    const golCasa = parseInt(document.getElementById('golCasaInput').value) || 0;
+    const golTrasferta = parseInt(document.getElementById('golTrasfertaInput').value) || 0;
+    
+    partita.golCasa = golCasa;
+    partita.golTrasferta = golTrasferta;
+    partita.completata = true;
+    partita.statisticheInserite = true;
+    
+    saveToLocalStorage();
+    updatePartiteView();
+    updateRisultatiView();
+    chiudiModale('risultatiModal');
+    
+    if (document.getElementById('classifiche-tab').classList.contains('active')) {
+        showClassifica('squadre');
+    }
+    
+    alert('Risultato e statistiche salvati con successo!');
+}
+
 function aggiornaStatistica(giocatore, tipo, valore) {
     if (!database.currentPartitaModifica) return;
     
@@ -2675,6 +2728,61 @@ function updateAdminSection() {
 // ====================
 // CLASSIFICHE AUTOMATICHE
 // ====================
+
+function calcolaClassificaSquadre() {
+    const statsSquadre = {};
+    
+    database.squadre.forEach(squadra => {
+        statsSquadre[squadra.id] = {
+            nome: squadra.nome,
+            colore: squadra.colore,
+            partiteGiocate: 0,
+            vinte: 0,
+            pareggiate: 0,
+            perse: 0,
+            golFatti: 0,
+            golSubiti: 0,
+            punti: 0
+        };
+    });
+    
+    database.partite.filter(p => p.completata).forEach(partita => {
+        const squadraCasa = statsSquadre[partita.squadraCasa];
+        const squadraTrasferta = statsSquadre[partita.squadraTrasferta];
+        
+        if (squadraCasa && squadraTrasferta) {
+            squadraCasa.partiteGiocate++;
+            squadraTrasferta.partiteGiocate++;
+            squadraCasa.golFatti += partita.golCasa;
+            squadraCasa.golSubiti += partita.golTrasferta;
+            squadraTrasferta.golFatti += partita.golTrasferta;
+            squadraTrasferta.golSubiti += partita.golCasa;
+            
+            if (partita.golCasa > partita.golTrasferta) {
+                squadraCasa.vinte++;
+                squadraCasa.punti += 3;
+                squadraTrasferta.perse++;
+            } else if (partita.golCasa < partita.golTrasferta) {
+                squadraTrasferta.vinte++;
+                squadraTrasferta.punti += 3;
+                squadraCasa.perse++;
+            } else {
+                squadraCasa.pareggiate++;
+                squadraTrasferta.pareggiate++;
+                squadraCasa.punti += 1;
+                squadraTrasferta.punti += 1;
+            }
+        }
+    });
+    
+    return Object.values(statsSquadre)
+        .sort((a, b) => {
+            if (b.punti !== a.punti) return b.punti - a.punti;
+            if ((b.golFatti - b.golSubiti) !== (a.golFatti - a.golSubiti)) 
+                return (b.golFatti - b.golSubiti) - (a.golFatti - a.golSubiti);
+            return b.golFatti - a.golFatti;
+        });
+}
 
 function calcolaClassificaGiocatori(tipo) {
     const statsGiocatori = {};
@@ -2975,10 +3083,37 @@ function showClassifica(tipo) {
 }
 
 // ====================
+// UTILITIES
+// ====================
+
+function updateAllViews() {
+    updatePlayersByTeamView();
+    updateLoginScreen();
+    updateSquadreView();
+    updateSquadreSelect();
+    updatePartiteView();
+    updateRisultatiView();
+    updateUserDisplay();
+}
+
+function showNotification(title, message) {
+    const notification = document.createElement('div');
+    notification.innerHTML = `
+        <div style="position: fixed; top: 20px; right: 20px; background: #27ae60; 
+                    color: white; padding: 15px; border-radius: 8px; z-index: 9999;
+                    box-shadow: 0 4px 12px rgba(0,0,0,0.2); min-width: 250px;">
+            <strong>${title}</strong><br>
+            ${message}
+        </div>
+    `;
+    document.body.appendChild(notification);
+    setTimeout(() => notification.remove(), 3000);
+}
+
+// ====================
 // PWA - INSTALLAZIONE
 // ====================
 
-// 1. REGISTRA SERVICE WORKER
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', function() {
     const swCode = `
@@ -3014,7 +3149,6 @@ self.addEventListener('fetch', function(event) {
   });
 }
 
-// 2. PULSANTE INSTALLA APP
 let deferredPrompt;
 const installButton = document.createElement('button');
 
@@ -3050,7 +3184,6 @@ window.addEventListener('beforeinstallprompt', (e) => {
   }, 10000);
 });
 
-// 3. CONTROLLA SE IN MODALITÀ APP
 function checkPWA() {
   const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
   const isiOSPWA = window.navigator.standalone === true;
@@ -3072,10 +3205,8 @@ function checkPWA() {
   }
 }
 
-// Esegui al caricamento
 checkPWA();
 
-// 4. Crea manifest.json dinamicamente
 function createManifest() {
     const manifest = {
         "name": "Campionato Arena 2026",
