@@ -1205,7 +1205,7 @@ function setupFirebaseRealtimeUpdates() {
                 database.players = data.players || database.players;
                 database.playerSquadra = data.playerSquadra || database.playerSquadra;
                 database.partite = data.partite || [];
-                database.statistichePartite = data.statistichePartite || {};
+                database.statistichePartite = database.statistichePartite || {};
                 
                 database.currentUser = currentUserBackup;
                 database.isAdmin = isAdminBackup;
