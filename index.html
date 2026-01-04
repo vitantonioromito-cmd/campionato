@@ -4,9 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Campionato Arena</title>
-<link rel="manifest" href="manifest.json">
 <style>
-body { font-family: 'Segoe UI', sans-serif; background: linear-gradient(135deg,#0a2a43,#0f5132); color:#fff; margin:0; padding:0;}
+body { font-family:'Segoe UI',sans-serif; background: linear-gradient(135deg,#0a2a43,#0f5132); color:#fff; margin:0; padding:0;}
 header {text-align:center; padding:15px; background:linear-gradient(90deg,#008C45,#F4F5F0,#CD212A); color:#000; font-weight:bold; font-size:24px;}
 main {padding:10px; max-width:480px; margin:auto;}
 .tabs {display:flex; flex-wrap: wrap; border-bottom:2px solid #fff; margin-bottom:10px;}
@@ -72,6 +71,17 @@ footer {text-align:center; padding:10px; font-size:12px; opacity:0.7;}
 <option value="#000000">Nero</option>
 </select>
 <button id="btnAddSquadra">➕ Aggiungi Squadra</button>
+
+<h4>Aggiungi Giocatore a Squadra</h4>
+<select id="selectSquadra"></select>
+<input id="nomeGiocatore" placeholder="Nome giocatore" />
+<select id="ruoloGiocatore">
+  <option value="Calciatore">Calciatore</option>
+  <option value="Capitano">Capitano</option>
+  <option value="Portiere">Portiere</option>
+</select>
+<button id="btnAddGiocatore">➕ Aggiungi Giocatore</button>
+
 <div id="listaSquadre"></div>
 </div>
 
@@ -84,43 +94,28 @@ footer {text-align:center; padding:10px; font-size:12px; opacity:0.7;}
 </main>
 <footer>Ideata da Vitlollo · Sviluppata con ChatGPT ⚽🇮🇹</footer>
 
-<script type="module">
-import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js';
-import { getFirestore, collection, doc, setDoc, getDocs, updateDoc } from 'https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js';
-
-// Config Firebase
-const firebaseConfig = {
-  apiKey: "INSERISCI_LA_TUA_API_KEY",
-  authDomain: "campionato-arena-2026.firebaseapp.com",
-  projectId: "campionato-arena-2026",
-  storageBucket: "campionato-arena-2026.appspot.com",
-  messagingSenderId: "844668143316",
-  appId: "1:844668143316:web:c72cb60c6e3513582f5d41"
-};
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
-
-// LOGIN / LOGOUT
-let loggedUser = '';
-const admins = {"Vitantonio":"giulia85","Fabrizio":"manetta26","Jacopo":"forzaroma1"};
+<script>
+let loggedUser='';
+const admins={"Vitantonio":"giulia85","Fabrizio":"manetta26","Jacopo":"forzaroma1"};
+let squadre = {}; // {nomeSquadra: {colore, giocatori:[{nome,ruolo,presenze,gol,assist,giallo,rosso}]}}
+let giocatori = {}; // {nome: {squadra,ruolo,presenze,gol,assist,giallo,rosso}}
 
 const loginNome = document.getElementById('loginNome');
 const loginPassword = document.getElementById('loginPassword');
 const passwordDiv = document.getElementById('passwordDiv');
 
 loginNome.addEventListener('input', ()=>{
-  if(admins[loginNome.value.trim()]) passwordDiv.style.display='block';
-  else passwordDiv.style.display='none';
+  passwordDiv.style.display = admins[loginNome.value.trim()]?'block':'none';
 });
 
-document.querySelectorAll('.tab').forEach(tab => tab.addEventListener('click', ()=> {
+document.querySelectorAll('.tab').forEach(tab=>tab.addEventListener('click',()=>{
   document.querySelectorAll('.tabContent').forEach(tc=>tc.classList.remove('active'));
   document.getElementById(tab.dataset.tab).classList.add('active');
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
   tab.classList.add('active');
 }));
 
-document.getElementById('btnLogin').addEventListener('click', async ()=>{
+document.getElementById('btnLogin').addEventListener('click', ()=>{
   const nome = loginNome.value.trim();
   const password = loginPassword.value;
   const info = document.getElementById('loginInfo');
@@ -131,7 +126,7 @@ document.getElementById('btnLogin').addEventListener('click', async ()=>{
   document.getElementById('loginCard').style.display='none';
   document.getElementById('appContent').style.display='block';
   document.querySelector(`.tab[data-tab='backupTab']`).style.display=(admins[nome]? 'block':'none');
-  await mostraMioScore();
+  aggiornaListaSquadre();
 });
 
 document.getElementById('btnLogout').addEventListener('click', ()=>{
@@ -144,59 +139,43 @@ document.getElementById('btnLogout').addEventListener('click', ()=>{
 });
 
 // AGGIUNGI SQUADRA
-document.getElementById('btnAddSquadra').addEventListener('click', async ()=>{
+document.getElementById('btnAddSquadra').addEventListener('click', ()=>{
   const nome = document.getElementById('newSquadra').value.trim();
   const colore = document.getElementById('newColore').value;
   if(!nome){ alert('Inserisci nome squadra'); return; }
-  await setDoc(doc(db,'squadre',nome), {nome,colore});
+  if(squadre[nome]){ alert('Squadra già esistente'); return; }
+  squadre[nome] = {colore, giocatori:[]};
   document.getElementById('newSquadra').value='';
-  alert('Squadra aggiunta!');
+  aggiornaListaSquadre();
 });
 
-// MOSTRA MIO SCORE
-async function mostraMioScore(){
-  const container = document.getElementById('scoreTab');
-  container.innerHTML='';
-  try{
-    const snapshot = await getDocs(collection(db, 'giocatori'));
-    let trovato=false;
-    snapshot.forEach(docSnap => {
-      const g = docSnap.data();
-      if(g.nome.toLowerCase()===loggedUser.toLowerCase()){
-        trovato=true;
-        container.innerHTML = `<h2>📊 Statistiche di ${g.nome}</h2>
-        <ul>
-          <li>Ruolo: ${g.ruolo||'Calciatore'}</li>
-          <li>Presenze: ${g.presenze||0} <button class="statBtn" onclick="updateStat('${docSnap.id}','presenze',1)">+</button><button class="statBtn" onclick="updateStat('${docSnap.id}','presenze',-1)">-</button></li>
-          <li>Gol: ${g.gol||0} <button class="statBtn" onclick="updateStat('${docSnap.id}','gol',1)">+</button><button class="statBtn" onclick="updateStat('${docSnap.id}','gol',-1)">-</button></li>
-          <li>Assist: ${g.assist||0} <button class="statBtn" onclick="updateStat('${docSnap.id}','assist',1)">+</button><button class="statBtn" onclick="updateStat('${docSnap.id}','assist',-1)">-</button></li>
-          <li>Cartellini Gialli: ${g.giallo||0} <button class="statBtn" onclick="updateStat('${docSnap.id}','giallo',1)">+</button><button class="statBtn" onclick="updateStat('${docSnap.id}','giallo',-1)">-</button></li>
-          <li>Cartellini Rossi: ${g.rosso||0} <button class="statBtn" onclick="updateStat('${docSnap.id}','rosso',1)">+</button><button class="statBtn" onclick="updateStat('${docSnap.id}','rosso',-1)">-</button></li>
-        </ul>`;
-      }
-    });
-    if(!trovato) container.innerHTML='<p>⚠️ Nessuna statistica disponibile.</p>';
-  }catch(e){ container.innerHTML='<p>Errore nel caricamento delle statistiche.</p>'; }
+// POPOLA SELECT SQUADRE
+function aggiornaListaSquadre(){
+  const select = document.getElementById('selectSquadra');
+  select.innerHTML='';
+  const lista = document.getElementById('listaSquadre');
+  lista.innerHTML='';
+  for(const nome in squadre){
+    select.innerHTML += `<option value="${nome}">${nome}</option>`;
+    const s = squadre[nome];
+    lista.innerHTML += `<div style="border:1px solid #fff;margin:5px;padding:5px;background:${s.colore}">
+    <b>${nome}</b><ul>${s.giocatori.map(g=>`<li>${g.nome} (${g.ruolo})</li>`).join('')}</ul></div>`;
+  }
 }
 
-// FUNZIONE AGGIORNA STATISTICHE
-window.updateStat = async function(id,field,delta){
-  const ref = doc(db,'giocatori',id);
-  const snap = await getDocs(collection(db,'giocatori'));
-  snap.forEach(async d=>{
-    if(d.id===id){
-      const val = d.data()[field]||0;
-      const newVal = Math.max(0,val+delta);
-      await updateDoc(ref,{[field]:newVal});
-      await mostraMioScore();
-    }
-  });
-}
-
-// SERVICE WORKER PWA
-if('serviceWorker' in navigator){
-  navigator.serviceWorker.register('service-worker.js').then(()=>console.log('Service Worker registrato')).catch(e=>console.log(e));
-}
+// AGGIUNGI GIOCATORE
+document.getElementById('btnAddGiocatore').addEventListener('click', ()=>{
+  const squadra = document.getElementById('selectSquadra').value;
+  const nome = document.getElementById('nomeGiocatore').value.trim();
+  const ruolo = document.getElementById('ruoloGiocatore').value;
+  if(!nome){ alert('Inserisci nome giocatore'); return; }
+  if(giocatori[nome]){ alert('Giocatore già esistente'); return; }
+  const g = {nome, ruolo, presenze:0, gol:0, assist:0, giallo:0, rosso:0};
+  squadre[squadra].giocatori.push(g);
+  giocatori[nome]= {...g, squadra};
+  document.getElementById('nomeGiocatore').value='';
+  aggiornaListaSquadre();
+});
 </script>
 </body>
 </html>
