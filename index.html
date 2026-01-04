@@ -13,6 +13,9 @@ h2 {margin-top:0; border-bottom:2px solid rgba(255,255,255,0.3); padding-bottom:
 input, select, button {padding:10px; border-radius:10px; border:none; margin:5px 0; font-size:16px;}
 button {background:#ffc107; cursor:pointer; font-weight:bold;}
 ul {list-style:none; padding:0;}
+table {width:100%; border-collapse:collapse; margin-top:10px;}
+th, td {border:1px solid #fff; padding:5px; text-align:center;}
+.highlight {background-color: rgba(255,255,0,0.3); font-weight:bold;}
 footer {text-align:center; padding:15px; font-size:14px; opacity:0.7;}
 </style>
 </head>
@@ -65,61 +68,57 @@ footer {text-align:center; padding:15px; font-size:14px; opacity:0.7;}
 <h2>📋 Squadre e Giocatori</h2>
 <div id="listaSquadre"></div>
 </div>
+
+<div class="card">
+<h2>📅 Calendario Partite</h2>
+<div>
+<label>Squadra 1:</label> <select id="calSquadra1"></select>
+<label>Squadra 2:</label> <select id="calSquadra2"></select>
+<label>Data:</label> <input type="date" id="calData" />
+<br>
+<button onclick="aggiungiPartita()">Aggiungi Partita</button>
+</div>
+<div id="listaPartite"></div>
 </div>
 </main>
 <footer>Ideata da Vitlollo · Sviluppata con ChatGPT ⚽🇮🇹</footer>
 
 <script>
-// Mock database per funzionare in locale
 let dbMock = [];
-
-// Admin e password
-const admins = {
-  "Vitantonio": "giulia85",
-  "Fabrizio": "manetta26",
-  "Jacopo": "forzaroma1"
-};
+let partiteMock = [];
+const admins = {"Vitantonio":"giulia85","Fabrizio":"manetta26","Jacopo":"forzaroma1"};
+let loggedUser = '';
 
 function login(){
   const nome = document.getElementById('loginNome').value.trim();
   const password = document.getElementById('loginPassword').value;
   const info = document.getElementById('loginInfo');
-
   if(!nome){ info.innerText='Inserisci un nome valido'; return; }
-
-  const isAdmin = admins[nome] && admins[nome] === password;
+  const isAdmin = admins[nome] && admins[nome]===password;
   info.innerText='';
-
   document.getElementById('loginCard').style.display='none';
   document.getElementById('appContent').style.display='block';
-
-  // Mostra il nome e ruolo in alto
+  loggedUser = nome;
   let ruolo = 'Calciatore';
-  for(let squadra of dbMock){
-    const g = squadra.giocatori?.find(p=>p.nome.toLowerCase()===nome.toLowerCase());
+  for(let s of dbMock){
+    const g = s.giocatori?.find(p=>p.nome.toLowerCase()===nome.toLowerCase());
     if(g){ ruolo = g.ruolo; break; }
   }
-
   const header = document.createElement('p');
-  header.innerText=`${nome} ${isAdmin?'(Admin)':'(' + ruolo + ')'}`;
+  header.innerText = `${nome} ${isAdmin?'(Admin)':'(' + ruolo + ')'}`;
   header.style.fontWeight='bold';
   header.style.marginBottom='15px';
   document.getElementById('appContent').prepend(header);
-
-  // Aggiorna lista squadre e giocatori
-  caricaSquadre();
-  aggiornaSelectGiocatore();
+  caricaSquadre(); aggiornaSelectGiocatore(); aggiornaSelectCalendario(); caricaPartite();
 }
 
 function salvaSquadra(){
   const nome = document.getElementById('nomeSquadra').value.trim();
   const colore = document.getElementById('coloreSquadra').value;
-  if(!nome){ alert('Inserisci il nome della squadra'); return; }
-
+  if(!nome){ alert('Inserisci nome squadra'); return; }
   dbMock.push({nome,colore,giocatori:[]});
   document.getElementById('nomeSquadra').value='';
-  caricaSquadre();
-  aggiornaSelectGiocatore();
+  caricaSquadre(); aggiornaSelectGiocatore(); aggiornaSelectCalendario();
 }
 
 function aggiungiGiocatore(){
@@ -127,11 +126,9 @@ function aggiungiGiocatore(){
   const squadraSelezionata = document.getElementById('squadraGiocatore').value;
   const ruolo = document.getElementById('ruoloGiocatore').value;
   if(!nome || !squadraSelezionata){ alert('Inserisci nome e squadra'); return; }
-
   const squadra = dbMock.find(s=>s.nome===squadraSelezionata);
   if(!squadra.giocatori) squadra.giocatori=[];
-  squadra.giocatori.push({nome, ruolo});
-
+  squadra.giocatori.push({nome,ruolo});
   document.getElementById('nomeGiocatore').value='';
   caricaSquadre();
 }
@@ -142,15 +139,14 @@ function caricaSquadre(){
   dbMock.forEach(s=>{
     const div = document.createElement('div');
     const h3 = document.createElement('h3');
-    h3.innerText=s.nome;
-    h3.style.color=s.colore;
+    h3.innerText=s.nome; h3.style.color=s.colore;
     div.appendChild(h3);
-
     const ul = document.createElement('ul');
     (s.giocatori||[]).forEach(g=>{
       const li = document.createElement('li');
       li.innerText = `${g.nome} (${g.ruolo})`;
-      li.style.color = s.colore;
+      li.style.color=s.colore;
+      if(g.nome===loggedUser) li.className='highlight';
       ul.appendChild(li);
     });
     div.appendChild(ul);
@@ -162,16 +158,42 @@ function aggiornaSelectGiocatore(){
   const select = document.getElementById('squadraGiocatore');
   select.innerHTML='';
   dbMock.forEach(s=>{
-    const option = document.createElement('option');
-    option.value = s.nome;
-    option.innerText = s.nome;
+    const option = document.createElement('option'); option.value=s.nome; option.innerText=s.nome;
     select.appendChild(option);
   });
 }
 
-// Avvio
-caricaSquadre();
-aggiornaSelectGiocatore();
+function aggiornaSelectCalendario(){
+  const s1 = document.getElementById('calSquadra1');
+  const s2 = document.getElementById('calSquadra2');
+  s1.innerHTML=''; s2.innerHTML='';
+  dbMock.forEach(s=>{
+    const o1 = document.createElement('option'); o1.value=s.nome; o1.innerText=s.nome; s1.appendChild(o1);
+    const o2 = document.createElement('option'); o2.value=s.nome; o2.innerText=s.nome; s2.appendChild(o2);
+  });
+}
+
+function aggiungiPartita(){
+  const s1 = document.getElementById('calSquadra1').value;
+  const s2 = document.getElementById('calSquadra2').value;
+  const data = document.getElementById('calData').value;
+  if(!s1 || !s2 || s1===s2 || !data){ alert('Inserisci due squadre diverse e data'); return; }
+  partiteMock.push({squadra1:s1, squadra2:s2, data: data, risultato:'0-0', tabellino:[]});
+  caricaPartite();
+}
+
+function caricaPartite(){
+  const container = document.getElementById('listaPartite');
+  container.innerHTML='';
+  partiteMock.forEach((p,index)=>{
+    const div = document.createElement('div');
+    div.style.marginBottom='10px';
+    const h4 = document.createElement('h4');
+    h4.innerText=`${p.data}: ${p.squadra1} vs ${p.squadra2} - Risultato: ${p.risultato}`;
+    div.appendChild(h4);
+    container.appendChild(div);
+  });
+}
 </script>
 </body>
 </html>
