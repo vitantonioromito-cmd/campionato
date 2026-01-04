@@ -49,8 +49,21 @@ footer {text-align:center; padding:15px; font-size:14px; opacity:0.7;}
 </div>
 
 <div class="card">
-<h2>📋 Squadre registrate</h2>
-<ul id="listaSquadre"></ul>
+<h2>➕ Aggiungi Giocatore (solo admin)</h2>
+<select id="squadraGiocatore"></select>
+<input id="nomeGiocatore" placeholder="Nome giocatore" />
+<select id="ruoloGiocatore">
+<option value="Calciatore">Calciatore</option>
+<option value="Capitano">Capitano</option>
+<option value="Portiere">Portiere</option>
+</select>
+<br>
+<button onclick="aggiungiGiocatore()">Aggiungi Giocatore</button>
+</div>
+
+<div class="card">
+<h2>📋 Squadre e Giocatori</h2>
+<div id="listaSquadre"></div>
 </div>
 </div>
 </main>
@@ -80,11 +93,22 @@ function login(){
   document.getElementById('loginCard').style.display='none';
   document.getElementById('appContent').style.display='block';
 
+  // Mostra il nome e ruolo in alto
+  let ruolo = 'Calciatore';
+  for(let squadra of dbMock){
+    const g = squadra.giocatori?.find(p=>p.nome.toLowerCase()===nome.toLowerCase());
+    if(g){ ruolo = g.ruolo; break; }
+  }
+
   const header = document.createElement('p');
-  header.innerText=`${nome} ${isAdmin?'(Admin)':'(Calciatore)'}`;
+  header.innerText=`${nome} ${isAdmin?'(Admin)':'(' + ruolo + ')'}`;
   header.style.fontWeight='bold';
   header.style.marginBottom='15px';
   document.getElementById('appContent').prepend(header);
+
+  // Aggiorna lista squadre e giocatori
+  caricaSquadre();
+  aggiornaSelectGiocatore();
 }
 
 function salvaSquadra(){
@@ -92,24 +116,62 @@ function salvaSquadra(){
   const colore = document.getElementById('coloreSquadra').value;
   if(!nome){ alert('Inserisci il nome della squadra'); return; }
 
-  dbMock.push({nome,colore});
+  dbMock.push({nome,colore,giocatori:[]});
   document.getElementById('nomeSquadra').value='';
+  caricaSquadre();
+  aggiornaSelectGiocatore();
+}
+
+function aggiungiGiocatore(){
+  const nome = document.getElementById('nomeGiocatore').value.trim();
+  const squadraSelezionata = document.getElementById('squadraGiocatore').value;
+  const ruolo = document.getElementById('ruoloGiocatore').value;
+  if(!nome || !squadraSelezionata){ alert('Inserisci nome e squadra'); return; }
+
+  const squadra = dbMock.find(s=>s.nome===squadraSelezionata);
+  if(!squadra.giocatori) squadra.giocatori=[];
+  squadra.giocatori.push({nome, ruolo});
+
+  document.getElementById('nomeGiocatore').value='';
   caricaSquadre();
 }
 
 function caricaSquadre(){
-  const lista = document.getElementById('listaSquadre');
-  lista.innerHTML='';
+  const container = document.getElementById('listaSquadre');
+  container.innerHTML='';
   dbMock.forEach(s=>{
-    const li = document.createElement('li');
-    li.style.color=s.colore;
-    li.innerText=s.nome;
-    lista.appendChild(li);
+    const div = document.createElement('div');
+    const h3 = document.createElement('h3');
+    h3.innerText=s.nome;
+    h3.style.color=s.colore;
+    div.appendChild(h3);
+
+    const ul = document.createElement('ul');
+    (s.giocatori||[]).forEach(g=>{
+      const li = document.createElement('li');
+      li.innerText = `${g.nome} (${g.ruolo})`;
+      li.style.color = s.colore;
+      ul.appendChild(li);
+    });
+    div.appendChild(ul);
+    container.appendChild(div);
+  });
+}
+
+function aggiornaSelectGiocatore(){
+  const select = document.getElementById('squadraGiocatore');
+  select.innerHTML='';
+  dbMock.forEach(s=>{
+    const option = document.createElement('option');
+    option.value = s.nome;
+    option.innerText = s.nome;
+    select.appendChild(option);
   });
 }
 
 // Avvio
 caricaSquadre();
+aggiornaSelectGiocatore();
 </script>
 </body>
 </html>
