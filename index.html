@@ -22,7 +22,6 @@ th, td {border:1px solid #fff; padding:4px; text-align:center;}
 .highlight {background-color: rgba(255,255,0,0.3); font-weight:bold;}
 footer {text-align:center; padding:10px; font-size:12px; opacity:0.7;}
 .logoutBtn {margin-top:5px; background:#ff4d4d;}
-.statBtn {width:30%; margin:2px auto; display:inline-block;}
 </style>
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
@@ -31,7 +30,6 @@ footer {text-align:center; padding:10px; font-size:12px; opacity:0.7;}
 <header>🏆 Campionato Arena</header>
 <main>
 
-<!-- LOGIN -->
 <div class="card" id="loginCard">
 <h2>🔐 Accesso</h2>
 <input id="loginNome" placeholder="Inserisci il tuo nome" />
@@ -43,7 +41,6 @@ footer {text-align:center; padding:10px; font-size:12px; opacity:0.7;}
 <p id="loginInfo" style="margin-top:8px;opacity:0.8"></p>
 </div>
 
-<!-- APP CONTENT -->
 <div id="appContent" style="display:none">
 <button class="logoutBtn" id="btnLogout">🚪 Logout</button>
 
@@ -56,7 +53,6 @@ footer {text-align:center; padding:10px; font-size:12px; opacity:0.7;}
 <div class="tab" data-tab="backupTab">💾 Backup</div>
 </div>
 
-<!-- TABS CONTENT -->
 <div id="squadreTab" class="tabContent active">
 <h3>Gestione Squadre</h3>
 <input id="newSquadra" placeholder="Nome squadra" />
@@ -145,9 +141,6 @@ document.getElementById('btnLogin').addEventListener('click', async ()=>{
   document.getElementById('appContent').style.display='block';
   document.querySelector(`.tab[data-tab='backupTab']`).style.display=(admins[nome]? 'block':'none');
   loadSquadre();
-  loadCalendario();
-  loadStats();
-  loadMioScore();
 });
 
 document.getElementById('btnLogout').addEventListener('click', ()=>{
@@ -166,8 +159,7 @@ document.getElementById('btnAddSquadra').addEventListener('click', async ()=>{
   const nome = document.getElementById('newSquadra').value.trim();
   const colore = document.getElementById('newColore').value;
   if(!nome){ alert('Inserisci nome squadra'); return; }
-  const docRef = db.collection('squadre').doc(nome);
-  await docRef.set({colore, giocatori:[]});
+  await db.collection('squadre').doc(nome).set({colore, giocatori:[]});
   document.getElementById('newSquadra').value='';
   loadSquadre();
 });
@@ -201,41 +193,6 @@ function loadSquadre(){
         <b>${doc.id}</b><ul>${s.giocatori.map(g=>`<li>${g.nome} (${g.ruolo})</li>`).join('')}</ul></div>`;
     });
   });
-}
-
-// ---------------- CALENDARIO & TABELLINO -----------------
-async function loadCalendario(){
-  const lista = document.getElementById('listaCalendario');
-  lista.innerHTML='';
-  db.collection('partite').onSnapshot(snapshot=>{
-    lista.innerHTML='';
-    snapshot.forEach(doc=>{
-      const p = doc.data();
-      const div = document.createElement('div');
-      div.style.border='1px solid #fff';
-      div.style.margin='5px';
-      div.style.padding='5px';
-      div.innerHTML = `<b>${p.squadra1} vs ${p.squadra2} (${p.data||''})</b><br>
-        Risultato: ${p.risultato||'-'}<br>
-        Marcatori: ${p.marcatori||'-'}<br>
-        Assist: ${p.assist||'-'}<br>
-        Cartellini G/R: ${p.giallo||0}/${p.rosso||0}<br>
-        Presenze: ${p.presenze||'-'}`;
-      lista.appendChild(div);
-    });
-  });
-}
-
-// ---------------- STATISTICHE -----------------
-async function loadStats(){
-  const tabStats = document.getElementById('tabellaStats');
-  tabStats.innerHTML="<p>⚽ Statistiche live da calendario e tabellino.</p>";
-}
-
-// ---------------- MIO SCORE -----------------
-function loadMioScore(){
-  const tabScore = document.getElementById('tabellaMioScore');
-  tabScore.innerHTML=`<p>📊 Qui vedrai le tue statistiche, ${loggedUser}</p>`;
 }
 </script>
 </body>
