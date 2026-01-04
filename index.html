@@ -23,21 +23,26 @@ th, td {border:1px solid #fff; padding:4px; text-align:center;}
 .highlight {background-color: rgba(255,255,0,0.3); font-weight:bold;}
 footer {text-align:center; padding:10px; font-size:12px; opacity:0.7;}
 .logoutBtn {margin-top:5px; background:#ff4d4d;}
+.statBtn {width:30%; margin:2px auto; display:inline-block;}
 </style>
 </head>
 <body>
 <header>🏆 Campionato Arena</header>
 <main>
 
+<!-- LOGIN -->
 <div class="card" id="loginCard">
 <h2>🔐 Accesso</h2>
 <input id="loginNome" placeholder="Inserisci il tuo nome" />
-<input id="loginPassword" type="password" placeholder="Password (solo admin)" />
+<div id="passwordDiv" style="display:none;">
+  <input id="loginPassword" type="password" placeholder="Password (solo admin)" />
+</div>
 <br>
 <button id="btnLogin">Entra</button>
 <p id="loginInfo" style="margin-top:8px;opacity:0.8"></p>
 </div>
 
+<!-- APP CONTENT -->
 <div id="appContent" style="display:none">
 <button class="logoutBtn" id="btnLogout">🚪 Logout</button>
 
@@ -50,6 +55,7 @@ footer {text-align:center; padding:10px; font-size:12px; opacity:0.7;}
 <div class="tab" data-tab="backupTab">💾 Backup</div>
 </div>
 
+<!-- TABS CONTENT -->
 <div id="squadreTab" class="tabContent active">
 <h3>Gestione Squadre</h3>
 <input id="newSquadra" placeholder="Nome squadra" />
@@ -80,8 +86,9 @@ footer {text-align:center; padding:10px; font-size:12px; opacity:0.7;}
 
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js';
-import { getFirestore, collection, doc, setDoc, getDocs } from 'https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js';
+import { getFirestore, collection, doc, setDoc, getDocs, updateDoc } from 'https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js';
 
+// Config Firebase
 const firebaseConfig = {
   apiKey: "INSERISCI_LA_TUA_API_KEY",
   authDomain: "campionato-arena-2026.firebaseapp.com",
@@ -93,85 +100,100 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
+// LOGIN / LOGOUT
 let loggedUser = '';
 const admins = {"Vitantonio":"giulia85","Fabrizio":"manetta26","Jacopo":"forzaroma1"};
 
-// Tab navigation
-function showTab(id){
-  document.querySelectorAll('.tabContent').forEach(tc=>tc.classList.remove('active'));
-  document.getElementById(id).classList.add('active');
-  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
-  document.querySelector(`.tab[data-tab='${id}']`).classList.add('active');
-}
-document.querySelectorAll('.tab').forEach(tab => tab.addEventListener('click', ()=> showTab(tab.dataset.tab)));
+const loginNome = document.getElementById('loginNome');
+const loginPassword = document.getElementById('loginPassword');
+const passwordDiv = document.getElementById('passwordDiv');
 
-// Login
+loginNome.addEventListener('input', ()=>{
+  if(admins[loginNome.value.trim()]) passwordDiv.style.display='block';
+  else passwordDiv.style.display='none';
+});
+
+document.querySelectorAll('.tab').forEach(tab => tab.addEventListener('click', ()=> {
+  document.querySelectorAll('.tabContent').forEach(tc=>tc.classList.remove('active'));
+  document.getElementById(tab.dataset.tab).classList.add('active');
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  tab.classList.add('active');
+}));
+
 document.getElementById('btnLogin').addEventListener('click', async ()=>{
-  const nome = document.getElementById('loginNome').value.trim();
-  const password = document.getElementById('loginPassword').value;
+  const nome = loginNome.value.trim();
+  const password = loginPassword.value;
   const info = document.getElementById('loginInfo');
   if(!nome){ info.innerText='Inserisci un nome valido'; return; }
+  if(admins[nome] && admins[nome]!==password){ info.innerText='Password errata!'; return; }
   info.innerText='';
+  loggedUser = nome;
   document.getElementById('loginCard').style.display='none';
   document.getElementById('appContent').style.display='block';
-  loggedUser = nome;
-
-  if(admins[nome] && admins[nome]===password){
-      document.querySelector(`.tab[data-tab='backupTab']`).style.display='block';
-  } else {
-      document.querySelector(`.tab[data-tab='backupTab']`).style.display='none';
-  }
+  document.querySelector(`.tab[data-tab='backupTab']`).style.display=(admins[nome]? 'block':'none');
   await mostraMioScore();
 });
 
-// Logout
 document.getElementById('btnLogout').addEventListener('click', ()=>{
   loggedUser='';
   document.getElementById('appContent').style.display='none';
   document.getElementById('loginCard').style.display='block';
-  document.getElementById('loginNome').value='';
-  document.getElementById('loginPassword').value='';
+  loginNome.value='';
+  loginPassword.value='';
+  passwordDiv.style.display='none';
 });
 
-// Mio Score
+// AGGIUNGI SQUADRA
+document.getElementById('btnAddSquadra').addEventListener('click', async ()=>{
+  const nome = document.getElementById('newSquadra').value.trim();
+  const colore = document.getElementById('newColore').value;
+  if(!nome){ alert('Inserisci nome squadra'); return; }
+  await setDoc(doc(db,'squadre',nome), {nome,colore});
+  document.getElementById('newSquadra').value='';
+  alert('Squadra aggiunta!');
+});
+
+// MOSTRA MIO SCORE
 async function mostraMioScore(){
   const container = document.getElementById('scoreTab');
   container.innerHTML='';
   try{
     const snapshot = await getDocs(collection(db, 'giocatori'));
-    let trovato = false;
+    let trovato=false;
     snapshot.forEach(docSnap => {
       const g = docSnap.data();
-      if(g.nome.toLowerCase() === loggedUser.toLowerCase()){
-        trovato = true;
+      if(g.nome.toLowerCase()===loggedUser.toLowerCase()){
+        trovato=true;
         container.innerHTML = `<h2>📊 Statistiche di ${g.nome}</h2>
-          <ul>
-            <li>Ruolo: ${g.ruolo || 'Calciatore'}</li>
-            <li>Presenze: ${g.presenze || 0}</li>
-            <li>Gol: ${g.gol || 0}</li>
-            <li>Assist: ${g.assist || 0}</li>
-            <li>Cartellini Gialli: ${g.giallo || 0}</li>
-            <li>Cartellini Rossi: ${g.rosso || 0}</li>
-          </ul>`;
+        <ul>
+          <li>Ruolo: ${g.ruolo||'Calciatore'}</li>
+          <li>Presenze: ${g.presenze||0} <button class="statBtn" onclick="updateStat('${docSnap.id}','presenze',1)">+</button><button class="statBtn" onclick="updateStat('${docSnap.id}','presenze',-1)">-</button></li>
+          <li>Gol: ${g.gol||0} <button class="statBtn" onclick="updateStat('${docSnap.id}','gol',1)">+</button><button class="statBtn" onclick="updateStat('${docSnap.id}','gol',-1)">-</button></li>
+          <li>Assist: ${g.assist||0} <button class="statBtn" onclick="updateStat('${docSnap.id}','assist',1)">+</button><button class="statBtn" onclick="updateStat('${docSnap.id}','assist',-1)">-</button></li>
+          <li>Cartellini Gialli: ${g.giallo||0} <button class="statBtn" onclick="updateStat('${docSnap.id}','giallo',1)">+</button><button class="statBtn" onclick="updateStat('${docSnap.id}','giallo',-1)">-</button></li>
+          <li>Cartellini Rossi: ${g.rosso||0} <button class="statBtn" onclick="updateStat('${docSnap.id}','rosso',1)">+</button><button class="statBtn" onclick="updateStat('${docSnap.id}','rosso',-1)">-</button></li>
+        </ul>`;
       }
     });
     if(!trovato) container.innerHTML='<p>⚠️ Nessuna statistica disponibile.</p>';
   }catch(e){ container.innerHTML='<p>Errore nel caricamento delle statistiche.</p>'; }
 }
 
-// Aggiungi Squadre (solo admin)
-document.getElementById('btnAddSquadra').addEventListener('click', async ()=>{
-  const nomeSquadra = document.getElementById('newSquadra').value.trim();
-  const colore = document.getElementById('newColore').value;
-  if(!nomeSquadra){ alert('Inserisci il nome della squadra'); return; }
-  try{
-    await setDoc(doc(db,'squadre',nomeSquadra),{nome:nomeSquadra,colore:colore});
-    alert('Squadra aggiunta!');
-    document.getElementById('newSquadra').value='';
-  }catch(e){ alert('Errore nell\'aggiunta della squadra'); }
-});
+// FUNZIONE AGGIORNA STATISTICHE
+window.updateStat = async function(id,field,delta){
+  const ref = doc(db,'giocatori',id);
+  const snap = await getDocs(collection(db,'giocatori'));
+  snap.forEach(async d=>{
+    if(d.id===id){
+      const val = d.data()[field]||0;
+      const newVal = Math.max(0,val+delta);
+      await updateDoc(ref,{[field]:newVal});
+      await mostraMioScore();
+    }
+  });
+}
 
-// PWA Service Worker
+// SERVICE WORKER PWA
 if('serviceWorker' in navigator){
   navigator.serviceWorker.register('service-worker.js').then(()=>console.log('Service Worker registrato')).catch(e=>console.log(e));
 }
