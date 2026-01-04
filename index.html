@@ -2,131 +2,178 @@
 <html lang="it">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Campionato Arena</title>
 <link rel="manifest" href="manifest.json">
 <style>
 body { font-family: 'Segoe UI', sans-serif; background: linear-gradient(135deg,#0a2a43,#0f5132); color:#fff; margin:0; padding:0;}
-header {text-align:center; padding:20px; background:linear-gradient(90deg,#008C45,#F4F5F0,#CD212A); color:#000; font-weight:bold; font-size:26px;}
-main {padding:20px; max-width:900px; margin:auto;}
-.tabs {display:flex; border-bottom:2px solid #fff; margin-bottom:20px;}
-.tab {padding:10px 20px; cursor:pointer; background:rgba(255,255,255,0.1); border-radius:10px 10px 0 0; margin-right:5px;}
+header {text-align:center; padding:15px; background:linear-gradient(90deg,#008C45,#F4F5F0,#CD212A); color:#000; font-weight:bold; font-size:24px;}
+main {padding:10px; max-width:480px; margin:auto;}
+.tabs {display:flex; flex-wrap: wrap; border-bottom:2px solid #fff; margin-bottom:10px;}
+.tab {flex:1 1 45%; text-align:center; padding:8px 5px; cursor:pointer; background:rgba(255,255,255,0.1); border-radius:10px 10px 0 0; margin:2px; font-size:14px;}
 .tab.active {background:#ffc107; color:#000; font-weight:bold;}
 .tabContent {display:none;}
 .tabContent.active {display:block;}
-.card {background:rgba(255,255,255,0.1); border-radius:16px; padding:20px; margin-bottom:20px; box-shadow:0 10px 30px rgba(0,0,0,0.3);}
-input, select, button {padding:10px; border-radius:10px; border:none; margin:5px 0; font-size:16px;}
+.card {background:rgba(255,255,255,0.1); border-radius:12px; padding:15px; margin-bottom:15px; box-shadow:0 5px 15px rgba(0,0,0,0.3);}
+input, select, button {width:100%; padding:8px; border-radius:8px; border:none; margin:4px 0; font-size:14px;}
 button {background:#ffc107; cursor:pointer; font-weight:bold;}
-ul {list-style:none; padding:0;}
-table {width:100%; border-collapse:collapse; margin-top:10px;}
-th, td {border:1px solid #fff; padding:5px; text-align:center;}
+ul {list-style:none; padding:0; font-size:14px;}
+table {width:100%; border-collapse:collapse; margin-top:8px; font-size:12px;}
+th, td {border:1px solid #fff; padding:4px; text-align:center;}
 .highlight {background-color: rgba(255,255,0,0.3); font-weight:bold;}
-footer {text-align:center; padding:15px; font-size:14px; opacity:0.7;}
+footer {text-align:center; padding:10px; font-size:12px; opacity:0.7;}
+.logoutBtn {margin-top:5px; background:#ff4d4d;}
 </style>
-<!-- Firebase -->
-<script type="module">
-  // Import Firebase SDK
-  import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js';
-  import { getFirestore, collection, doc, setDoc, getDocs, updateDoc } from 'https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js';
-
-  const firebaseConfig = {
-    apiKey: "INSERISCI_LA_TUA_API_KEY",
-    authDomain: "campionato-arena-2026.firebaseapp.com",
-    projectId: "campionato-arena-2026",
-    storageBucket: "campionato-arena-2026.appspot.com",
-    messagingSenderId: "844668143316",
-    appId: "1:844668143316:web:c72cb60c6e3513582f5d41"
-  };
-
-  const app = initializeApp(firebaseConfig);
-  const db = getFirestore(app);
-</script>
 </head>
 <body>
 <header>🏆 Campionato Arena</header>
 <main>
+
 <div class="card" id="loginCard">
 <h2>🔐 Accesso</h2>
 <input id="loginNome" placeholder="Inserisci il tuo nome" />
 <input id="loginPassword" type="password" placeholder="Password (solo admin)" />
 <br>
 <button id="btnLogin">Entra</button>
-<p id="loginInfo" style="margin-top:10px;opacity:0.8"></p>
+<p id="loginInfo" style="margin-top:8px;opacity:0.8"></p>
 </div>
 
 <div id="appContent" style="display:none">
+<button class="logoutBtn" id="btnLogout">🚪 Logout</button>
+
 <div class="tabs">
-<div class="tab active" onclick="showTab('squadreTab')">👥 Squadre</div>
-<div class="tab" onclick="showTab('classificaTab')">🏆 Classifica</div>
-<div class="tab" onclick="showTab('statTab')">⚽ Marcatori & Assist</div>
-<div class="tab" onclick="showTab('calendarioTab')">📅 Calendario</div>
-<div class="tab" onclick="showTab('scoreTab')">📊 Mio Score</div>
-<div class="tab" onclick="showTab('backupTab')">💾 Backup</div>
+<div class="tab active" data-tab="squadreTab">👥 Squadre</div>
+<div class="tab" data-tab="classificaTab">🏆 Classifica</div>
+<div class="tab" data-tab="statTab">⚽ Marcatori & Assist</div>
+<div class="tab" data-tab="calendarioTab">📅 Calendario</div>
+<div class="tab" data-tab="scoreTab">📊 Mio Score</div>
+<div class="tab" data-tab="backupTab">💾 Backup</div>
 </div>
 
-<div id="squadreTab" class="tabContent active"></div>
-<div id="classificaTab" class="tabContent"></div>
-<div id="statTab" class="tabContent"></div>
-<div id="calendarioTab" class="tabContent"></div>
+<div id="squadreTab" class="tabContent active">
+<h3>Gestione Squadre</h3>
+<input id="newSquadra" placeholder="Nome squadra" />
+<select id="newColore">
+<option value="#ff0000">Rosso</option>
+<option value="#00ff00">Verde</option>
+<option value="#0000ff">Blu</option>
+<option value="#ffff00">Giallo</option>
+<option value="#ff00ff">Fucsia</option>
+<option value="#00ffff">Ciano</option>
+<option value="#ffa500">Arancione</option>
+<option value="#800080">Viola</option>
+<option value="#008080">Teal</option>
+<option value="#000000">Nero</option>
+</select>
+<button id="btnAddSquadra">➕ Aggiungi Squadra</button>
+<div id="listaSquadre"></div>
+</div>
+
+<div id="classificaTab" class="tabContent"><h3>Classifica</h3><div id="tabellaClassifica"></div></div>
+<div id="statTab" class="tabContent"><h3>Marcatori & Assist</h3><div id="tabellaStats"></div></div>
+<div id="calendarioTab" class="tabContent"><h3>Calendario</h3><div id="tabellaCalendario"></div></div>
 <div id="scoreTab" class="tabContent"></div>
-<div id="backupTab" class="tabContent"></div>
+<div id="backupTab" class="tabContent"><h3>Backup Admin</h3><p>Solo per amministratori.</p></div>
+
 </main>
 <footer>Ideata da Vitlollo · Sviluppata con ChatGPT ⚽🇮🇹</footer>
 
 <script type="module">
-import { collection, doc, setDoc, getDocs, updateDoc } from 'https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js';
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js';
+import { getFirestore, collection, doc, setDoc, getDocs } from 'https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js';
+
+const firebaseConfig = {
+  apiKey: "INSERISCI_LA_TUA_API_KEY",
+  authDomain: "campionato-arena-2026.firebaseapp.com",
+  projectId: "campionato-arena-2026",
+  storageBucket: "campionato-arena-2026.appspot.com",
+  messagingSenderId: "844668143316",
+  appId: "1:844668143316:web:c72cb60c6e3513582f5d41"
+};
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
 
 let loggedUser = '';
 const admins = {"Vitantonio":"giulia85","Fabrizio":"manetta26","Jacopo":"forzaroma1"};
 
+// Tab navigation
 function showTab(id){
   document.querySelectorAll('.tabContent').forEach(tc=>tc.classList.remove('active'));
   document.getElementById(id).classList.add('active');
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
-  document.querySelector(`.tab[onclick*='${id}']`).classList.add('active');
+  document.querySelector(`.tab[data-tab='${id}']`).classList.add('active');
 }
+document.querySelectorAll('.tab').forEach(tab => tab.addEventListener('click', ()=> showTab(tab.dataset.tab)));
 
-document.getElementById('btnLogin').addEventListener('click', async function(){
+// Login
+document.getElementById('btnLogin').addEventListener('click', async ()=>{
   const nome = document.getElementById('loginNome').value.trim();
   const password = document.getElementById('loginPassword').value;
   const info = document.getElementById('loginInfo');
   if(!nome){ info.innerText='Inserisci un nome valido'; return; }
-  const isAdmin = admins[nome] && admins[nome]===password;
   info.innerText='';
   document.getElementById('loginCard').style.display='none';
   document.getElementById('appContent').style.display='block';
   loggedUser = nome;
+
+  if(admins[nome] && admins[nome]===password){
+      document.querySelector(`.tab[data-tab='backupTab']`).style.display='block';
+  } else {
+      document.querySelector(`.tab[data-tab='backupTab']`).style.display='none';
+  }
   await mostraMioScore();
 });
 
+// Logout
+document.getElementById('btnLogout').addEventListener('click', ()=>{
+  loggedUser='';
+  document.getElementById('appContent').style.display='none';
+  document.getElementById('loginCard').style.display='block';
+  document.getElementById('loginNome').value='';
+  document.getElementById('loginPassword').value='';
+});
+
+// Mio Score
 async function mostraMioScore(){
   const container = document.getElementById('scoreTab');
   container.innerHTML='';
-  // Leggere dati da Firestore per il giocatore loggato
-  const giocatoriCol = collection(db, 'giocatori');
-  const snapshot = await getDocs(giocatoriCol);
-  let trovato = false;
-  snapshot.forEach(doc => {
-    const g = doc.data();
-    if(g.nome.toLowerCase() === loggedUser.toLowerCase()){
-      trovato = true;
-      container.innerHTML = `<h2>📊 Statistiche di ${g.nome}</h2>
-        <ul>
-          <li>Ruolo: ${g.ruolo}</li>
-          <li>Presenze: ${g.presenze || 0}</li>
-          <li>Gol: ${g.gol || 0}</li>
-          <li>Assist: ${g.assist || 0}</li>
-          <li>Cartellini Gialli: ${g.giallo || 0}</li>
-          <li>Cartellini Rossi: ${g.rosso || 0}</li>
-        </ul>`;
-    }
-  });
-  if(!trovato) container.innerHTML='<p>⚠️ Nessuna statistica disponibile.</p>';
+  try{
+    const snapshot = await getDocs(collection(db, 'giocatori'));
+    let trovato = false;
+    snapshot.forEach(docSnap => {
+      const g = docSnap.data();
+      if(g.nome.toLowerCase() === loggedUser.toLowerCase()){
+        trovato = true;
+        container.innerHTML = `<h2>📊 Statistiche di ${g.nome}</h2>
+          <ul>
+            <li>Ruolo: ${g.ruolo || 'Calciatore'}</li>
+            <li>Presenze: ${g.presenze || 0}</li>
+            <li>Gol: ${g.gol || 0}</li>
+            <li>Assist: ${g.assist || 0}</li>
+            <li>Cartellini Gialli: ${g.giallo || 0}</li>
+            <li>Cartellini Rossi: ${g.rosso || 0}</li>
+          </ul>`;
+      }
+    });
+    if(!trovato) container.innerHTML='<p>⚠️ Nessuna statistica disponibile.</p>';
+  }catch(e){ container.innerHTML='<p>Errore nel caricamento delle statistiche.</p>'; }
 }
 
-// Service Worker registration per PWA
+// Aggiungi Squadre (solo admin)
+document.getElementById('btnAddSquadra').addEventListener('click', async ()=>{
+  const nomeSquadra = document.getElementById('newSquadra').value.trim();
+  const colore = document.getElementById('newColore').value;
+  if(!nomeSquadra){ alert('Inserisci il nome della squadra'); return; }
+  try{
+    await setDoc(doc(db,'squadre',nomeSquadra),{nome:nomeSquadra,colore:colore});
+    alert('Squadra aggiunta!');
+    document.getElementById('newSquadra').value='';
+  }catch(e){ alert('Errore nell\'aggiunta della squadra'); }
+});
+
+// PWA Service Worker
 if('serviceWorker' in navigator){
-  navigator.serviceWorker.register('service-worker.js').then(()=>console.log('Service Worker registrato')); 
+  navigator.serviceWorker.register('service-worker.js').then(()=>console.log('Service Worker registrato')).catch(e=>console.log(e));
 }
 </script>
 </body>
