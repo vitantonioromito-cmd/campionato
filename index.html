@@ -4,12 +4,17 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Campionato Arena</title>
+<link rel="manifest" href="manifest.json">
 <style>
 body { font-family: 'Segoe UI', sans-serif; background: linear-gradient(135deg,#0a2a43,#0f5132); color:#fff; margin:0; padding:0;}
 header {text-align:center; padding:20px; background:linear-gradient(90deg,#008C45,#F4F5F0,#CD212A); color:#000; font-weight:bold; font-size:26px;}
 main {padding:20px; max-width:900px; margin:auto;}
+.tabs {display:flex; border-bottom:2px solid #fff; margin-bottom:20px;}
+.tab {padding:10px 20px; cursor:pointer; background:rgba(255,255,255,0.1); border-radius:10px 10px 0 0; margin-right:5px;}
+.tab.active {background:#ffc107; color:#000; font-weight:bold;}
+.tabContent {display:none;}
+.tabContent.active {display:block;}
 .card {background:rgba(255,255,255,0.1); border-radius:16px; padding:20px; margin-bottom:20px; box-shadow:0 10px 30px rgba(0,0,0,0.3);}
-h2 {margin-top:0; border-bottom:2px solid rgba(255,255,255,0.3); padding-bottom:10px;}
 input, select, button {padding:10px; border-radius:10px; border:none; margin:5px 0; font-size:16px;}
 button {background:#ffc107; cursor:pointer; font-weight:bold;}
 ul {list-style:none; padding:0;}
@@ -18,6 +23,24 @@ th, td {border:1px solid #fff; padding:5px; text-align:center;}
 .highlight {background-color: rgba(255,255,0,0.3); font-weight:bold;}
 footer {text-align:center; padding:15px; font-size:14px; opacity:0.7;}
 </style>
+<!-- Firebase -->
+<script type="module">
+  // Import Firebase SDK
+  import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js';
+  import { getFirestore, collection, doc, setDoc, getDocs, updateDoc } from 'https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js';
+
+  const firebaseConfig = {
+    apiKey: "INSERISCI_LA_TUA_API_KEY",
+    authDomain: "campionato-arena-2026.firebaseapp.com",
+    projectId: "campionato-arena-2026",
+    storageBucket: "campionato-arena-2026.appspot.com",
+    messagingSenderId: "844668143316",
+    appId: "1:844668143316:web:c72cb60c6e3513582f5d41"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+</script>
 </head>
 <body>
 <header>🏆 Campionato Arena</header>
@@ -27,69 +50,43 @@ footer {text-align:center; padding:15px; font-size:14px; opacity:0.7;}
 <input id="loginNome" placeholder="Inserisci il tuo nome" />
 <input id="loginPassword" type="password" placeholder="Password (solo admin)" />
 <br>
-<button onclick="login()">Entra</button>
+<button id="btnLogin">Entra</button>
 <p id="loginInfo" style="margin-top:10px;opacity:0.8"></p>
 </div>
 
 <div id="appContent" style="display:none">
-<div class="card">
-<h2>➕ Crea Squadra (solo admin)</h2>
-<input id="nomeSquadra" placeholder="Nome squadra" />
-<select id="coloreSquadra">
-<option value="#ff0000">Rosso</option>
-<option value="#0000ff">Blu</option>
-<option value="#00ff00">Verde</option>
-<option value="#ffff00">Giallo</option>
-<option value="#ff6600">Arancione</option>
-<option value="#800080">Viola</option>
-<option value="#00ffff">Ciano</option>
-<option value="#ffffff">Bianco</option>
-<option value="#000000">Nero</option>
-<option value="#ff69b4">Rosa</option>
-</select>
-<br>
-<button onclick="salvaSquadra()">Salva Squadra</button>
+<div class="tabs">
+<div class="tab active" onclick="showTab('squadreTab')">👥 Squadre</div>
+<div class="tab" onclick="showTab('classificaTab')">🏆 Classifica</div>
+<div class="tab" onclick="showTab('statTab')">⚽ Marcatori & Assist</div>
+<div class="tab" onclick="showTab('calendarioTab')">📅 Calendario</div>
+<div class="tab" onclick="showTab('scoreTab')">📊 Mio Score</div>
+<div class="tab" onclick="showTab('backupTab')">💾 Backup</div>
 </div>
 
-<div class="card">
-<h2>➕ Aggiungi Giocatore (solo admin)</h2>
-<select id="squadraGiocatore"></select>
-<input id="nomeGiocatore" placeholder="Nome giocatore" />
-<select id="ruoloGiocatore">
-<option value="Calciatore">Calciatore</option>
-<option value="Capitano">Capitano</option>
-<option value="Portiere">Portiere</option>
-</select>
-<br>
-<button onclick="aggiungiGiocatore()">Aggiungi Giocatore</button>
-</div>
-
-<div class="card">
-<h2>📋 Squadre e Giocatori</h2>
-<div id="listaSquadre"></div>
-</div>
-
-<div class="card">
-<h2>📅 Calendario Partite</h2>
-<div>
-<label>Squadra 1:</label> <select id="calSquadra1"></select>
-<label>Squadra 2:</label> <select id="calSquadra2"></select>
-<label>Data:</label> <input type="date" id="calData" />
-<br>
-<button onclick="aggiungiPartita()">Aggiungi Partita</button>
-</div>
-<div id="listaPartite"></div>
-</div>
+<div id="squadreTab" class="tabContent active"></div>
+<div id="classificaTab" class="tabContent"></div>
+<div id="statTab" class="tabContent"></div>
+<div id="calendarioTab" class="tabContent"></div>
+<div id="scoreTab" class="tabContent"></div>
+<div id="backupTab" class="tabContent"></div>
 </main>
 <footer>Ideata da Vitlollo · Sviluppata con ChatGPT ⚽🇮🇹</footer>
 
-<script>
-let dbMock = [];
-let partiteMock = [];
-const admins = {"Vitantonio":"giulia85","Fabrizio":"manetta26","Jacopo":"forzaroma1"};
-let loggedUser = '';
+<script type="module">
+import { collection, doc, setDoc, getDocs, updateDoc } from 'https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js';
 
-function login(){
+let loggedUser = '';
+const admins = {"Vitantonio":"giulia85","Fabrizio":"manetta26","Jacopo":"forzaroma1"};
+
+function showTab(id){
+  document.querySelectorAll('.tabContent').forEach(tc=>tc.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.querySelector(`.tab[onclick*='${id}']`).classList.add('active');
+}
+
+document.getElementById('btnLogin').addEventListener('click', async function(){
   const nome = document.getElementById('loginNome').value.trim();
   const password = document.getElementById('loginPassword').value;
   const info = document.getElementById('loginInfo');
@@ -99,100 +96,37 @@ function login(){
   document.getElementById('loginCard').style.display='none';
   document.getElementById('appContent').style.display='block';
   loggedUser = nome;
-  let ruolo = 'Calciatore';
-  for(let s of dbMock){
-    const g = s.giocatori?.find(p=>p.nome.toLowerCase()===nome.toLowerCase());
-    if(g){ ruolo = g.ruolo; break; }
-  }
-  const header = document.createElement('p');
-  header.innerText = `${nome} ${isAdmin?'(Admin)':'(' + ruolo + ')'}`;
-  header.style.fontWeight='bold';
-  header.style.marginBottom='15px';
-  document.getElementById('appContent').prepend(header);
-  caricaSquadre(); aggiornaSelectGiocatore(); aggiornaSelectCalendario(); caricaPartite();
-}
+  await mostraMioScore();
+});
 
-function salvaSquadra(){
-  const nome = document.getElementById('nomeSquadra').value.trim();
-  const colore = document.getElementById('coloreSquadra').value;
-  if(!nome){ alert('Inserisci nome squadra'); return; }
-  dbMock.push({nome,colore,giocatori:[]});
-  document.getElementById('nomeSquadra').value='';
-  caricaSquadre(); aggiornaSelectGiocatore(); aggiornaSelectCalendario();
-}
-
-function aggiungiGiocatore(){
-  const nome = document.getElementById('nomeGiocatore').value.trim();
-  const squadraSelezionata = document.getElementById('squadraGiocatore').value;
-  const ruolo = document.getElementById('ruoloGiocatore').value;
-  if(!nome || !squadraSelezionata){ alert('Inserisci nome e squadra'); return; }
-  const squadra = dbMock.find(s=>s.nome===squadraSelezionata);
-  if(!squadra.giocatori) squadra.giocatori=[];
-  squadra.giocatori.push({nome,ruolo});
-  document.getElementById('nomeGiocatore').value='';
-  caricaSquadre();
-}
-
-function caricaSquadre(){
-  const container = document.getElementById('listaSquadre');
+async function mostraMioScore(){
+  const container = document.getElementById('scoreTab');
   container.innerHTML='';
-  dbMock.forEach(s=>{
-    const div = document.createElement('div');
-    const h3 = document.createElement('h3');
-    h3.innerText=s.nome; h3.style.color=s.colore;
-    div.appendChild(h3);
-    const ul = document.createElement('ul');
-    (s.giocatori||[]).forEach(g=>{
-      const li = document.createElement('li');
-      li.innerText = `${g.nome} (${g.ruolo})`;
-      li.style.color=s.colore;
-      if(g.nome===loggedUser) li.className='highlight';
-      ul.appendChild(li);
-    });
-    div.appendChild(ul);
-    container.appendChild(div);
+  // Leggere dati da Firestore per il giocatore loggato
+  const giocatoriCol = collection(db, 'giocatori');
+  const snapshot = await getDocs(giocatoriCol);
+  let trovato = false;
+  snapshot.forEach(doc => {
+    const g = doc.data();
+    if(g.nome.toLowerCase() === loggedUser.toLowerCase()){
+      trovato = true;
+      container.innerHTML = `<h2>📊 Statistiche di ${g.nome}</h2>
+        <ul>
+          <li>Ruolo: ${g.ruolo}</li>
+          <li>Presenze: ${g.presenze || 0}</li>
+          <li>Gol: ${g.gol || 0}</li>
+          <li>Assist: ${g.assist || 0}</li>
+          <li>Cartellini Gialli: ${g.giallo || 0}</li>
+          <li>Cartellini Rossi: ${g.rosso || 0}</li>
+        </ul>`;
+    }
   });
+  if(!trovato) container.innerHTML='<p>⚠️ Nessuna statistica disponibile.</p>';
 }
 
-function aggiornaSelectGiocatore(){
-  const select = document.getElementById('squadraGiocatore');
-  select.innerHTML='';
-  dbMock.forEach(s=>{
-    const option = document.createElement('option'); option.value=s.nome; option.innerText=s.nome;
-    select.appendChild(option);
-  });
-}
-
-function aggiornaSelectCalendario(){
-  const s1 = document.getElementById('calSquadra1');
-  const s2 = document.getElementById('calSquadra2');
-  s1.innerHTML=''; s2.innerHTML='';
-  dbMock.forEach(s=>{
-    const o1 = document.createElement('option'); o1.value=s.nome; o1.innerText=s.nome; s1.appendChild(o1);
-    const o2 = document.createElement('option'); o2.value=s.nome; o2.innerText=s.nome; s2.appendChild(o2);
-  });
-}
-
-function aggiungiPartita(){
-  const s1 = document.getElementById('calSquadra1').value;
-  const s2 = document.getElementById('calSquadra2').value;
-  const data = document.getElementById('calData').value;
-  if(!s1 || !s2 || s1===s2 || !data){ alert('Inserisci due squadre diverse e data'); return; }
-  partiteMock.push({squadra1:s1, squadra2:s2, data: data, risultato:'0-0', tabellino:[]});
-  caricaPartite();
-}
-
-function caricaPartite(){
-  const container = document.getElementById('listaPartite');
-  container.innerHTML='';
-  partiteMock.forEach((p,index)=>{
-    const div = document.createElement('div');
-    div.style.marginBottom='10px';
-    const h4 = document.createElement('h4');
-    h4.innerText=`${p.data}: ${p.squadra1} vs ${p.squadra2} - Risultato: ${p.risultato}`;
-    div.appendChild(h4);
-    container.appendChild(div);
-  });
+// Service Worker registration per PWA
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('service-worker.js').then(()=>console.log('Service Worker registrato')); 
 }
 </script>
 </body>
