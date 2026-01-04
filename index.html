@@ -1,241 +1,115 @@
 <!DOCTYPE html>
 <html lang="it">
 <head>
-  <meta charset="UTF-8" />
-  <title>Campionato Arena</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-
-  <!-- Firebase -->
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
-    import { getFirestore, collection, addDoc, getDocs, doc, updateDoc } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
-
-    const firebaseConfig = {
-      apiKey: "AIzaSyDZhOEHZcHELj_wy1gmCqX8-8zPQe0WcMk",
-      authDomain: "campionato-arena-2026.firebaseapp.com",
-      projectId: "campionato-arena-2026",
-      storageBucket: "campionato-arena-2026.firebasestorage.app",
-      messagingSenderId: "844668143316",
-      appId: "1:844668143316:web:c72cb60c6e3513582f5d41"
-    };
-
-    const app = initializeApp(firebaseConfig);
-    const db = getFirestore(app);
-    window.db = db;
-    window.firebaseHelpers = { collection, addDoc, getDocs, doc, updateDoc };
-  </script>
-
-  <style>
-    body {
-      margin: 0;
-      font-family: Arial, Helvetica, sans-serif;
-      background: #f4f4f4;
-    }
-
-    header {
-      background: #111;
-      color: #fff;
-      padding: 15px;
-      text-align: center;
-    }
-
-    header h1 {
-      margin: 0;
-    }
-
-    header small {
-      display: block;
-      font-size: 12px;
-      color: #ccc;
-      margin-top: 5px;
-    }
-
-    #login, #app {
-      padding: 20px;
-    }
-
-    .hidden {
-      display: none;
-    }
-
-    input, select, button {
-      padding: 10px;
-      margin: 5px 0;
-      width: 100%;
-    }
-
-    button {
-      background: #111;
-      color: white;
-      border: none;
-      cursor: pointer;
-    }
-
-    nav {
-      display: flex;
-      gap: 10px;
-      margin-bottom: 20px;
-    }
-
-    nav button {
-      flex: 1;
-      background: #ddd;
-      color: #000;
-    }
-
-    nav button.active {
-      background: #111;
-      color: #fff;
-    }
-
-    .team {
-      padding: 10px;
-      margin-bottom: 10px;
-      background: white;
-      border-left: 10px solid;
-    }
-
-    .player {
-      margin-left: 10px;
-    }
-
-    .admin-only {
-      background: #ffeeba;
-      padding: 10px;
-      margin-bottom: 15px;
-    }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Campionato Arena</title>
+<style>
+body { font-family: 'Segoe UI', sans-serif; background: linear-gradient(135deg,#0a2a43,#0f5132); color:#fff; margin:0; padding:0;}
+header {text-align:center; padding:20px; background:linear-gradient(90deg,#008C45,#F4F5F0,#CD212A); color:#000; font-weight:bold; font-size:26px;}
+main {padding:20px; max-width:900px; margin:auto;}
+.card {background:rgba(255,255,255,0.1); border-radius:16px; padding:20px; margin-bottom:20px; box-shadow:0 10px 30px rgba(0,0,0,0.3);}
+h2 {margin-top:0; border-bottom:2px solid rgba(255,255,255,0.3); padding-bottom:10px;}
+input, select, button {padding:10px; border-radius:10px; border:none; margin:5px 0; font-size:16px;}
+button {background:#ffc107; cursor:pointer; font-weight:bold;}
+ul {list-style:none; padding:0;}
+footer {text-align:center; padding:15px; font-size:14px; opacity:0.7;}
+</style>
 </head>
-
 <body>
-
-<header>
-  <h1>🏆 CAMPIONATO ARENA</h1>
-  <small>Ideata da Vitlollo – sviluppata con ChatGPT</small>
-</header>
-
-<div id="login">
-  <h2>Accesso</h2>
-  <input id="username" placeholder="Nome" />
-  <input id="password" placeholder="Password (solo admin)" type="password" />
-  <button onclick="login()">Entra</button>
+<header>🏆 Campionato Arena</header>
+<main>
+<div class="card" id="loginCard">
+<h2>🔐 Accesso</h2>
+<input id="loginNome" placeholder="Inserisci il tuo nome" />
+<input id="loginPassword" type="password" placeholder="Password (solo admin)" />
+<br>
+<button onclick="login()">Entra</button>
+<p id="loginInfo" style="margin-top:10px;opacity:0.8"></p>
 </div>
 
-<div id="app" class="hidden">
-  <p id="welcome"></p>
-
-  <nav>
-    <button onclick="showTab('squadre')" class="active">Squadre</button>
-    <button onclick="showTab('classifica')">Classifica</button>
-    <button onclick="showTab('calendario')">Calendario</button>
-  </nav>
-
-  <div id="squadre">
-    <div id="adminPanel" class="admin-only hidden">
-      <h3>Crea squadra</h3>
-      <input id="teamName" placeholder="Nome squadra" />
-      <select id="teamColor">
-        <option value="blue">Blu</option>
-        <option value="red">Rosso</option>
-        <option value="green">Verde</option>
-        <option value="yellow">Giallo</option>
-        <option value="orange">Arancione</option>
-        <option value="purple">Viola</option>
-        <option value="black">Nero</option>
-        <option value="gray">Grigio</option>
-        <option value="teal">Turchese</option>
-        <option value="brown">Bordeaux</option>
-      </select>
-      <button onclick="createTeam()">Aggiungi squadra</button>
-    </div>
-
-    <div id="teamsList"></div>
-  </div>
-
-  <div id="classifica" class="hidden">
-    <p>Classifica pronta (STEP 2: calcoli automatici)</p>
-  </div>
-
-  <div id="calendario" class="hidden">
-    <p>Calendario pronto (STEP 2: partite e risultati)</p>
-  </div>
+<div id="appContent" style="display:none">
+<div class="card">
+<h2>➕ Crea Squadra (solo admin)</h2>
+<input id="nomeSquadra" placeholder="Nome squadra" />
+<select id="coloreSquadra">
+<option value="#ff0000">Rosso</option>
+<option value="#0000ff">Blu</option>
+<option value="#00ff00">Verde</option>
+<option value="#ffff00">Giallo</option>
+<option value="#ff6600">Arancione</option>
+<option value="#800080">Viola</option>
+<option value="#00ffff">Ciano</option>
+<option value="#ffffff">Bianco</option>
+<option value="#000000">Nero</option>
+<option value="#ff69b4">Rosa</option>
+</select>
+<br>
+<button onclick="salvaSquadra()">Salva Squadra</button>
 </div>
+
+<div class="card">
+<h2>📋 Squadre registrate</h2>
+<ul id="listaSquadre"></ul>
+</div>
+</div>
+</main>
+<footer>Ideata da Vitlollo · Sviluppata con ChatGPT ⚽🇮🇹</footer>
 
 <script>
-  const admins = {
-    "Vitantonio": "giulia85",
-    "Fabrizio": "manetta26",
-    "Jacopo": "forzaroma1"
-  };
+// Mock database per funzionare in locale
+let dbMock = [];
 
-  let currentUser = null;
-  let isAdmin = false;
+// Admin e password
+const admins = {
+  "Vitantonio": "giulia85",
+  "Fabrizio": "manetta26",
+  "Jacopo": "forzaroma1"
+};
 
-  function login() {
-    const name = document.getElementById("username").value.trim();
-    const pass = document.getElementById("password").value;
+function login(){
+  const nome = document.getElementById('loginNome').value.trim();
+  const password = document.getElementById('loginPassword').value;
+  const info = document.getElementById('loginInfo');
 
-    if (!name) return alert("Inserisci il nome");
+  if(!nome){ info.innerText='Inserisci un nome valido'; return; }
 
-    if (admins[name] && admins[name] === pass) {
-      isAdmin = true;
-    }
+  const isAdmin = admins[nome] && admins[nome] === password;
+  info.innerText='';
 
-    currentUser = name;
+  document.getElementById('loginCard').style.display='none';
+  document.getElementById('appContent').style.display='block';
 
-    document.getElementById("login").classList.add("hidden");
-    document.getElementById("app").classList.remove("hidden");
-    document.getElementById("welcome").innerText =
-      `Ciao ${name}${isAdmin ? " (Admin)" : " (Calciatore)"}`;
+  const header = document.createElement('p');
+  header.innerText=`${nome} ${isAdmin?'(Admin)':'(Calciatore)'}`;
+  header.style.fontWeight='bold';
+  header.style.marginBottom='15px';
+  document.getElementById('appContent').prepend(header);
+}
 
-    if (isAdmin) {
-      document.getElementById("adminPanel").classList.remove("hidden");
-    }
+function salvaSquadra(){
+  const nome = document.getElementById('nomeSquadra').value.trim();
+  const colore = document.getElementById('coloreSquadra').value;
+  if(!nome){ alert('Inserisci il nome della squadra'); return; }
 
-    loadTeams();
-  }
+  dbMock.push({nome,colore});
+  document.getElementById('nomeSquadra').value='';
+  caricaSquadre();
+}
 
-  function showTab(tab) {
-    document.querySelectorAll("#app > div:not(nav)").forEach(d => d.classList.add("hidden"));
-    document.getElementById(tab).classList.remove("hidden");
+function caricaSquadre(){
+  const lista = document.getElementById('listaSquadre');
+  lista.innerHTML='';
+  dbMock.forEach(s=>{
+    const li = document.createElement('li');
+    li.style.color=s.colore;
+    li.innerText=s.nome;
+    lista.appendChild(li);
+  });
+}
 
-    document.querySelectorAll("nav button").forEach(b => b.classList.remove("active"));
-    event.target.classList.add("active");
-  }
-
-  async function createTeam() {
-    const name = document.getElementById("teamName").value;
-    const color = document.getElementById("teamColor").value;
-
-    if (!name) return alert("Nome squadra mancante");
-
-    const { collection, addDoc } = window.firebaseHelpers;
-    await addDoc(collection(window.db, "teams"), {
-      name,
-      color,
-      players: []
-    });
-
-    document.getElementById("teamName").value = "";
-    loadTeams();
-  }
-
-  async function loadTeams() {
-    const { collection, getDocs } = window.firebaseHelpers;
-    const snapshot = await getDocs(collection(window.db, "teams"));
-    const container = document.getElementById("teamsList");
-    container.innerHTML = "";
-
-    snapshot.forEach(docSnap => {
-      const team = docSnap.data();
-      const div = document.createElement("div");
-      div.className = "team";
-      div.style.borderColor = team.color;
-      div.innerHTML = `<strong>${team.name}</strong>`;
-      container.appendChild(div);
-    });
-  }
+// Avvio
+caricaSquadre();
 </script>
-
 </body>
 </html>
