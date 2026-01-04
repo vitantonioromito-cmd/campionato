@@ -24,6 +24,9 @@ footer {text-align:center; padding:10px; font-size:12px; opacity:0.7;}
 .logoutBtn {margin-top:5px; background:#ff4d4d;}
 .statBtn {width:30%; margin:2px auto; display:inline-block;}
 </style>
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
 </head>
 <body>
 <header>🏆 Campionato Arena</header>
@@ -48,7 +51,7 @@ footer {text-align:center; padding:10px; font-size:12px; opacity:0.7;}
 <div class="tabs">
 <div class="tab active" data-tab="squadreTab">👥 Squadre</div>
 <div class="tab" data-tab="classificaTab">🏆 Classifica</div>
-<div class="tab" data-tab="statTab">⚽ Marcatori & Assist</div>
+<div class="tab" data-tab="statTab">⚽ Statistiche</div>
 <div class="tab" data-tab="calendarioTab">📅 Calendario</div>
 <div class="tab" data-tab="scoreTab">📊 Mio Score</div>
 <div class="tab" data-tab="backupTab">💾 Backup</div>
@@ -86,19 +89,35 @@ footer {text-align:center; padding:10px; font-size:12px; opacity:0.7;}
 </div>
 
 <div id="classificaTab" class="tabContent"><h3>Classifica</h3><div id="tabellaClassifica"></div></div>
-<div id="statTab" class="tabContent"><h3>Marcatori & Assist</h3><div id="tabellaStats"></div></div>
-<div id="calendarioTab" class="tabContent"><h3>Calendario</h3><div id="tabellaCalendario"></div></div>
-<div id="scoreTab" class="tabContent"></div>
+<div id="statTab" class="tabContent"><h3>Statistiche Generali</h3><div id="tabellaStats"></div></div>
+<div id="calendarioTab" class="tabContent"><h3>Calendario</h3>
+<div>
+<button id="btnAddPartita">➕ Aggiungi Partita</button>
+<div id="listaCalendario"></div>
+</div>
+</div>
+<div id="scoreTab" class="tabContent"><h3>Mio Score</h3><div id="tabellaMioScore"></div></div>
 <div id="backupTab" class="tabContent"><h3>Backup Admin</h3><p>Solo per amministratori.</p></div>
 
 </main>
 <footer>Ideata da Vitlollo · Sviluppata con ChatGPT ⚽🇮🇹</footer>
 
 <script>
+// ---------------- FIREBASE CONFIG -----------------
+const firebaseConfig = {
+  apiKey: "AIzaSyDZhOEHZcHELj_wy1gmCqX8-8zPQe0WcMk",
+  authDomain: "campionato-arena-2026.firebaseapp.com",
+  projectId: "campionato-arena-2026",
+  storageBucket: "campionato-arena-2026.firebasestorage.app",
+  messagingSenderId: "844668143316",
+  appId: "1:844668143316:web:c72cb60c6e3513582f5d41"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+// ---------------- LOGIN -----------------
 let loggedUser='';
 const admins={"Vitantonio":"giulia85","Fabrizio":"manetta26","Jacopo":"forzaroma1"};
-let squadre = {}; // {nomeSquadra: {colore, giocatori:[{nome,ruolo,presenze,gol,assist,giallo,rosso}]}}
-let giocatori = {}; // {nome: {squadra,ruolo,presenze,gol,assist,giallo,rosso}}
 
 const loginNome = document.getElementById('loginNome');
 const loginPassword = document.getElementById('loginPassword');
@@ -115,7 +134,7 @@ document.querySelectorAll('.tab').forEach(tab=>tab.addEventListener('click',()=>
   tab.classList.add('active');
 }));
 
-document.getElementById('btnLogin').addEventListener('click', ()=>{
+document.getElementById('btnLogin').addEventListener('click', async ()=>{
   const nome = loginNome.value.trim();
   const password = loginPassword.value;
   const info = document.getElementById('loginInfo');
@@ -126,7 +145,10 @@ document.getElementById('btnLogin').addEventListener('click', ()=>{
   document.getElementById('loginCard').style.display='none';
   document.getElementById('appContent').style.display='block';
   document.querySelector(`.tab[data-tab='backupTab']`).style.display=(admins[nome]? 'block':'none');
-  aggiornaListaSquadre();
+  loadSquadre();
+  loadCalendario();
+  loadStats();
+  loadMioScore();
 });
 
 document.getElementById('btnLogout').addEventListener('click', ()=>{
@@ -138,44 +160,70 @@ document.getElementById('btnLogout').addEventListener('click', ()=>{
   passwordDiv.style.display='none';
 });
 
-// AGGIUNGI SQUADRA
-document.getElementById('btnAddSquadra').addEventListener('click', ()=>{
+// ---------------- GESTIONE SQUADRE -----------------
+const selectSquadra = document.getElementById('selectSquadra');
+
+document.getElementById('btnAddSquadra').addEventListener('click', async ()=>{
   const nome = document.getElementById('newSquadra').value.trim();
   const colore = document.getElementById('newColore').value;
   if(!nome){ alert('Inserisci nome squadra'); return; }
-  if(squadre[nome]){ alert('Squadra già esistente'); return; }
-  squadre[nome] = {colore, giocatori:[]};
+  const docRef = db.collection('squadre').doc(nome);
+  const doc = await docRef.get();
+  if(doc.exists){ alert('Squadra già esistente'); return; }
+  await docRef.set({colore, giocatori:[]});
   document.getElementById('newSquadra').value='';
-  aggiornaListaSquadre();
+  loadSquadre();
 });
 
-// POPOLA SELECT SQUADRE
-function aggiornaListaSquadre(){
-  const select = document.getElementById('selectSquadra');
-  select.innerHTML='';
-  const lista = document.getElementById('listaSquadre');
-  lista.innerHTML='';
-  for(const nome in squadre){
-    select.innerHTML += `<option value="${nome}">${nome}</option>`;
-    const s = squadre[nome];
-    lista.innerHTML += `<div style="border:1px solid #fff;margin:5px;padding:5px;background:${s.colore}">
-    <b>${nome}</b><ul>${s.giocatori.map(g=>`<li>${g.nome} (${g.ruolo})</li>`).join('')}</ul></div>`;
-  }
-}
-
-// AGGIUNGI GIOCATORE
-document.getElementById('btnAddGiocatore').addEventListener('click', ()=>{
-  const squadra = document.getElementById('selectSquadra').value;
+document.getElementById('btnAddGiocatore').addEventListener('click', async ()=>{
+  const squadra = selectSquadra.value;
   const nome = document.getElementById('nomeGiocatore').value.trim();
   const ruolo = document.getElementById('ruoloGiocatore').value;
   if(!nome){ alert('Inserisci nome giocatore'); return; }
-  if(giocatori[nome]){ alert('Giocatore già esistente'); return; }
-  const g = {nome, ruolo, presenze:0, gol:0, assist:0, giallo:0, rosso:0};
-  squadre[squadra].giocatori.push(g);
-  giocatori[nome]= {...g, squadra};
-  document.getElementById('nomeGiocatore').value='';
-  aggiornaListaSquadre();
+  const squadraRef = db.collection('squadre').doc(squadra);
+  const doc = await squadraRef.get();
+  if(doc.exists){
+    const data = doc.data();
+    if(data.giocatori.find(g=>g.nome===nome)){ alert('Giocatore già esistente'); return; }
+    data.giocatori.push({nome, ruolo, gol:0, assist:0, presenze:0, giallo:0, rosso:0});
+    await squadraRef.update({giocatori:data.giocatori});
+    document.getElementById('nomeGiocatore').value='';
+    loadSquadre();
+  }
 });
+
+// ---------------- CARICAMENTO SQUADRE -----------------
+function loadSquadre(){
+  db.collection('squadre').onSnapshot(snapshot=>{
+    selectSquadra.innerHTML='';
+    const lista = document.getElementById('listaSquadre');
+    lista.innerHTML='';
+    snapshot.forEach(doc=>{
+      const s = doc.data();
+      selectSquadra.innerHTML += `<option value="${doc.id}">${doc.id}</option>`;
+      lista.innerHTML += `<div style="border:1px solid #fff;margin:5px;padding:5px;background:${s.colore}">
+        <b>${doc.id}</b><ul>${s.giocatori.map(g=>`<li>${g.nome} (${g.ruolo})</li>`).join('')}</ul></div>`;
+    });
+  });
+}
+
+// ---------------- CALENDARIO -----------------
+async function loadCalendario(){
+  const lista = document.getElementById('listaCalendario');
+  lista.innerHTML = "<p>📅 Inserisci le partite dal pannello Admin</p>";
+}
+
+// ---------------- STATISTICHE -----------------
+async function loadStats(){
+  const tabStats = document.getElementById('tabellaStats');
+  tabStats.innerHTML="<p>⚽ Statistiche generali verranno calcolate live dal calendario e tabellino.</p>";
+}
+
+// ---------------- MIO SCORE -----------------
+function loadMioScore(){
+  const tabScore = document.getElementById('tabellaMioScore');
+  tabScore.innerHTML=`<p>📊 Qui vedrai le tue statistiche, ${loggedUser}</p>`;
+}
 </script>
 </body>
 </html>
