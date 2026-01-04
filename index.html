@@ -24,7 +24,6 @@ footer {text-align:center; padding:10px; font-size:12px; opacity:0.7;}
 .logoutBtn {margin-top:5px; background:#ff4d4d;}
 .statBtn {width:30%; margin:2px auto; display:inline-block;}
 </style>
-<!-- Firebase SDK -->
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
 </head>
@@ -103,7 +102,7 @@ footer {text-align:center; padding:10px; font-size:12px; opacity:0.7;}
 <footer>Ideata da Vitlollo · Sviluppata con ChatGPT ⚽🇮🇹</footer>
 
 <script>
-// ---------------- FIREBASE CONFIG -----------------
+// ---------------- FIREBASE -----------------
 const firebaseConfig = {
   apiKey: "AIzaSyDZhOEHZcHELj_wy1gmCqX8-8zPQe0WcMk",
   authDomain: "campionato-arena-2026.firebaseapp.com",
@@ -168,8 +167,6 @@ document.getElementById('btnAddSquadra').addEventListener('click', async ()=>{
   const colore = document.getElementById('newColore').value;
   if(!nome){ alert('Inserisci nome squadra'); return; }
   const docRef = db.collection('squadre').doc(nome);
-  const doc = await docRef.get();
-  if(doc.exists){ alert('Squadra già esistente'); return; }
   await docRef.set({colore, giocatori:[]});
   document.getElementById('newSquadra').value='';
   loadSquadre();
@@ -192,7 +189,6 @@ document.getElementById('btnAddGiocatore').addEventListener('click', async ()=>{
   }
 });
 
-// ---------------- CARICAMENTO SQUADRE -----------------
 function loadSquadre(){
   db.collection('squadre').onSnapshot(snapshot=>{
     selectSquadra.innerHTML='';
@@ -207,16 +203,33 @@ function loadSquadre(){
   });
 }
 
-// ---------------- CALENDARIO -----------------
+// ---------------- CALENDARIO & TABELLINO -----------------
 async function loadCalendario(){
   const lista = document.getElementById('listaCalendario');
-  lista.innerHTML = "<p>📅 Inserisci le partite dal pannello Admin</p>";
+  lista.innerHTML='';
+  db.collection('partite').onSnapshot(snapshot=>{
+    lista.innerHTML='';
+    snapshot.forEach(doc=>{
+      const p = doc.data();
+      const div = document.createElement('div');
+      div.style.border='1px solid #fff';
+      div.style.margin='5px';
+      div.style.padding='5px';
+      div.innerHTML = `<b>${p.squadra1} vs ${p.squadra2} (${p.data||''})</b><br>
+        Risultato: ${p.risultato||'-'}<br>
+        Marcatori: ${p.marcatori||'-'}<br>
+        Assist: ${p.assist||'-'}<br>
+        Cartellini G/R: ${p.giallo||0}/${p.rosso||0}<br>
+        Presenze: ${p.presenze||'-'}`;
+      lista.appendChild(div);
+    });
+  });
 }
 
 // ---------------- STATISTICHE -----------------
 async function loadStats(){
   const tabStats = document.getElementById('tabellaStats');
-  tabStats.innerHTML="<p>⚽ Statistiche generali verranno calcolate live dal calendario e tabellino.</p>";
+  tabStats.innerHTML="<p>⚽ Statistiche live da calendario e tabellino.</p>";
 }
 
 // ---------------- MIO SCORE -----------------
