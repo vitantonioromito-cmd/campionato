@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>🏆 Campionato Arena</title>
 <style>
+/* TUTTO IL CSS RIMANE IDENTICO */
 :root {
   --bg: #0a192f;
   --card: #112240;
@@ -1181,7 +1182,7 @@ button.danger:hover {
   <main>
     <!-- Squadre -->
     <section id="squadre" class="section active">
-      <div class="card">
+      <div class="card" id="createTeamCard" style="display:none">
         <h3>➕ Crea Nuova Squadra</h3>
         <input id="teamName" placeholder="Nome squadra">
         <div>Scegli colore:</div>
@@ -1193,7 +1194,7 @@ button.danger:hover {
 
     <!-- Partite -->
     <section id="cal" class="section">
-      <div class="card">
+      <div class="card" id="createMatchCard" style="display:none">
         <h3>➕ Nuova Partita</h3>
         <input type="date" id="matchDate">
         <input type="time" id="matchTime">
@@ -1261,7 +1262,7 @@ button.danger:hover {
 
     <!-- Backup -->
     <section id="backup" class="section">
-      <div class="card">
+      <div class="card" id="backupCard" style="display:none">
         <h3>💾 Backup & Ripristino</h3>
         <div class="backup-grid">
           <div class="backup-card">
@@ -1287,6 +1288,32 @@ button.danger:hover {
         </div>
         <div style="margin-top: 20px;">
           <button class="danger" onclick="resetData()">🗑️ RESET DATI</button>
+        </div>
+      </div>
+      <div id="backupUserView" class="card">
+        <h3>💾 Informazioni Backup</h3>
+        <div class="backup-grid">
+          <div class="backup-card">
+            <div class="backup-value" id="userBackupTeamsCount">0</div>
+            <div class="backup-label">Squadre</div>
+          </div>
+          <div class="backup-card">
+            <div class="backup-value" id="userBackupMatchesCount">0</div>
+            <div class="backup-label">Partite</div>
+          </div>
+          <div class="backup-card">
+            <div class="backup-value" id="userBackupPlayersCount">0</div>
+            <div class="backup-label">Giocatori</div>
+          </div>
+          <div class="backup-card">
+            <div class="backup-value" id="userBackupEventsCount">0</div>
+            <div class="backup-label">Eventi</div>
+          </div>
+        </div>
+        <div style="margin-top: 20px; padding: 20px; background: rgba(0,212,170,0.05); border-radius: 12px;">
+          <div style="font-size: 14px; color: var(--muted); text-align: center;">
+            Solo gli admin possono esportare/importare dati
+          </div>
         </div>
       </div>
     </section>
@@ -1322,12 +1349,6 @@ button.danger:hover {
 
 <script>
 // ================ VARIABILI GLOBALI ================
-const ADMINS = {
-  "Vitantonio": "giulia85",
-  "Fabrizio": "manetta26", 
-  "Jacopo": "forzaroma1"
-};
-
 const COLORS = [
   '#e63946', '#f4a261', '#e9c46a', '#2a9d8f', '#118ab2',
   '#9d4edd', '#ff5d8f', '#06d6a0', '#ffd166', '#8ac926'
@@ -1346,12 +1367,149 @@ let pendingAdminAction = null;
 let isFirebaseConnected = false;
 let passwordFieldShown = false;
 
-// Firebase functions
-let remove, set, onValue, ref;
-let firebaseApp, database, dataRef;
+// Firebase
+let firebaseApp, firebaseDatabase;
+let databaseRef;
+let firebaseInitialized = false;
+
+// ================ FIREBASE INIZIALIZATION ================
+async function initializeFirebase() {
+  try {
+    // Controlla se Firebase è già stato caricato
+    if (typeof firebase === 'undefined') {
+      // Carica Firebase SDK (versione compatibilità per semplicità)
+      await loadScript('https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js');
+      await loadScript('https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js');
+    }
+    
+    const firebaseConfig = {
+      apiKey: "AIzaSyDZhOEHZcHELj_wy1gmCqX8-8zPQe0WcMk",
+      authDomain: "campionato-arena-2026.firebaseapp.com",
+      databaseURL: "https://campionato-arena-2026-default-rtdb.europe-west1.firebasedatabase.app",
+      projectId: "campionato-arena-2026",
+      storageBucket: "campionato-arena-2026.firebasestorage.app",
+      messagingSenderId: "844668143316",
+      appId: "1:844668143316:web:c72cb60c6e3513582f5d41"
+    };
+    
+    // Inizializza Firebase (versione compat)
+    firebaseApp = firebase.initializeApp(firebaseConfig);
+    firebaseDatabase = firebase.database(firebaseApp);
+    databaseRef = firebaseDatabase.ref('campionatoData');
+    
+    isFirebaseConnected = true;
+    firebaseInitialized = true;
+    console.log('✅ Firebase inizializzato con successo!');
+    return true;
+  } catch (error) {
+    console.error('❌ Errore inizializzazione Firebase:', error);
+    isFirebaseConnected = false;
+    showToast('⚠️ Modalità offline: i dati sono salvati solo localmente', 'warning');
+    return false;
+  }
+}
+
+function loadScript(src) {
+  return new Promise((resolve, reject) => {
+    const script = document.createElement('script');
+    script.src = src;
+    script.onload = resolve;
+    script.onerror = reject;
+    document.head.appendChild(script);
+  });
+}
+
+// ================ SISTEMA DI SINCRONIZZAZIONE FIREBASE ================
+function initFirebaseSync() {
+  loadLocalData();
+  
+  if (isFirebaseConnected) {
+    // Ascolta cambiamenti in tempo reale da Firebase
+    databaseRef.on('value', (snapshot) => {
+      const remoteData = snapshot.val();
+      if (remoteData) {
+        const remoteTime = remoteData.lastUpdate || 0;
+        
+        if (remoteTime > lastUpdateTime) {
+          teamsData = remoteData.teams || [];
+          matchesData = remoteData.matches || [];
+          lastUpdateTime = remoteTime;
+          
+          renderAll();
+          updateSyncStatus(`🔄 Sync da Firebase`, true);
+          
+          saveLocalData();
+        }
+      }
+    }, (error) => {
+      console.error('Errore Firebase listener:', error);
+      updateSyncStatus('❌ Errore connessione Firebase', false);
+      isFirebaseConnected = false;
+    });
+    
+    // Sincronizza periodicamente
+    syncInterval = setInterval(syncData, 30000);
+  } else {
+    showToast('Modalità offline: i dati sono salvati solo localmente', 'warning');
+  }
+}
+
+function saveDataToFirebase() {
+  const data = {
+    teams: teamsData,
+    matches: matchesData,
+    lastUpdate: Date.now(),
+    lastUser: currentUser,
+    lastUserRole: currentUserRole,
+    version: '3.0-firebase'
+  };
+  
+  saveLocalData();
+  
+  if (isFirebaseConnected) {
+    databaseRef.set(data)
+      .then(() => {
+        lastUpdateTime = data.lastUpdate;
+        updateSyncStatus('💾 Salvato su Firebase & tutti i dispositivi', true);
+      })
+      .catch((error) => {
+        console.error('Errore salvataggio Firebase:', error);
+        updateSyncStatus('❌ Errore salvataggio Firebase', false);
+      });
+  } else {
+    updateSyncStatus('💾 Salvato solo localmente', true);
+  }
+  
+  updateBackupInfo();
+}
+
+function syncData() {
+  if (isFirebaseConnected) {
+    // Verifica se ci sono aggiornamenti remoti
+    databaseRef.once('value')
+      .then((snapshot) => {
+        const remoteData = snapshot.val();
+        if (remoteData) {
+          const remoteTime = remoteData.lastUpdate || 0;
+          if (remoteTime > lastUpdateTime) {
+            // Aggiorna con dati remoti
+            teamsData = remoteData.teams || [];
+            matchesData = remoteData.matches || [];
+            lastUpdateTime = remoteTime;
+            renderAll();
+            saveLocalData();
+            updateSyncStatus('🔄 Sincronizzato con altri dispositivi', true);
+          }
+        }
+      })
+      .catch((error) => {
+        console.error('Errore sincronizzazione:', error);
+      });
+  }
+}
 
 // ================ FUNZIONI GLOBALI PER L'HTML ================
-function checkLogin() {
+async function checkLogin() {
   const usernameInput = document.getElementById('loginUsername');
   const passwordInput = document.getElementById('loginPassword');
   const username = usernameInput.value.trim();
@@ -1363,13 +1521,10 @@ function checkLogin() {
     return;
   }
   
-  const adminEntry = Object.entries(ADMINS).find(([adminName]) => 
-    adminName.toLowerCase() === username.toLowerCase()
-  );
+  // Controlla se è un admin
+  const isAdminUser = ADMIN_USERS.includes(username);
   
-  if (adminEntry) {
-    const [adminName, adminPassword] = adminEntry;
-    
+  if (isAdminUser) {
     if (!passwordFieldShown) {
       passwordFieldShown = true;
       passwordInput.style.display = 'block';
@@ -1384,7 +1539,14 @@ function checkLogin() {
       return;
     }
     
-    if (password !== adminPassword) {
+    // Password admin (semplificata per demo)
+    const adminPasswords = {
+      'Vitantonio': 'giulia85',
+      'Fabrizio': 'manetta26',
+      'Jacopo': 'forzaroma1'
+    };
+    
+    if (password !== adminPasswords[username]) {
       showToast('Password admin errata!', 'error');
       passwordInput.value = '';
       passwordInput.focus();
@@ -1392,7 +1554,7 @@ function checkLogin() {
     }
     
     isAdmin = true;
-    currentUser = adminName;
+    currentUser = username;
     currentUserRole = "Admin";
     currentUserIcon = "👑";
     
@@ -1404,6 +1566,7 @@ function checkLogin() {
     currentUser = username;
     isAdmin = false;
     
+    // Cerca il giocatore nelle squadre
     let playerFound = false;
     for (const team of teamsData) {
       const player = team.players.find(p => 
@@ -1432,7 +1595,15 @@ function checkLogin() {
   document.getElementById('app').style.display = 'block';
   
   updateUserBadge();
-  initSync();
+  
+  // Mostra/nascondi funzioni admin
+  toggleAdminFunctions();
+  
+  // Inizializza Firebase e sync se non è già stato fatto
+  if (!firebaseInitialized) {
+    await initializeFirebase();
+  }
+  initFirebaseSync();
   
   const welcomeMsg = isAdmin ? 
     `Admin ${currentUser} pronto per la gestione!` : 
@@ -1445,11 +1616,17 @@ function checkLogin() {
   passwordFieldShown = false;
 }
 
+// ================ LISTA UTENTI ADMIN ================
+const ADMIN_USERS = ['Vitantonio', 'Fabrizio', 'Jacopo'];
+
+// ================ FUNZIONI RIMANENTI (UGUALI AL CODICE ORIGINALE) ================
 function openTab(id, btn) {
   document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
   document.getElementById(id).classList.add('active');
   document.querySelectorAll('.nav button').forEach(x => x.classList.remove('active'));
   btn.classList.add('active');
+  
+  toggleAdminFunctions();
   
   switch(id) {
     case 'class': renderClassifica(); break;
@@ -1553,7 +1730,14 @@ function closeAdminModal() {
 function verifyAdmin() {
   const password = document.getElementById('adminPasswordInput').value;
   
-  if (ADMINS[currentUser] && ADMINS[currentUser] === password) {
+  // Password admin (semplificate per demo)
+  const adminPasswords = {
+    'Vitantonio': 'giulia85',
+    'Fabrizio': 'manetta26',
+    'Jacopo': 'forzaroma1'
+  };
+  
+  if (adminPasswords[currentUser] && adminPasswords[currentUser] === password) {
     isAdmin = true;
     currentUserRole = "Admin";
     currentUserIcon = "👑";
@@ -1563,6 +1747,7 @@ function verifyAdmin() {
     localStorage.setItem('currentUserIcon', currentUserIcon);
     
     updateUserBadge();
+    toggleAdminFunctions();
     closeAdminModal();
     
     if (pendingAdminAction) {
@@ -1658,8 +1843,8 @@ function resetData() {
       teamsData = [];
       matchesData = [];
       
-      if (isFirebaseConnected && dataRef) {
-        remove(dataRef).catch(err => console.error('Errore Firebase reset:', err));
+      if (isFirebaseConnected && databaseRef) {
+        databaseRef.remove().catch(err => console.error('Errore Firebase reset:', err));
       }
       
       renderAll();
@@ -1754,100 +1939,30 @@ function showAdminModal(actionCallback) {
   document.getElementById('adminPasswordInput').focus();
 }
 
-// ================ FIREBASE INIZIALIZATION ================
-async function initializeFirebase() {
-  try {
-    const { initializeApp } = await import("https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js");
-    const { getDatabase, ref: firebaseRef, set: firebaseSet, onValue: firebaseOnValue, remove: firebaseRemove } = await import("https://www.gstatic.com/firebasejs/9.22.0/firebase-database.js");
-    
-    const firebaseConfig = {
-      apiKey: "AIzaSyDZhOEHZcHELj_wy1gmCqX8-8zPQe0WcMk",
-      authDomain: "campionato-arena-2026.firebaseapp.com",
-      databaseURL: "https://campionato-arena-2026-default-rtdb.europe-west1.firebasedatabase.app",
-      projectId: "campionato-arena-2026",
-      storageBucket: "campionato-arena-2026.firebasestorage.app",
-      messagingSenderId: "844668143316",
-      appId: "1:844668143316:web:c72cb60c6e3513582f5d41"
-    };
-    
-    firebaseApp = initializeApp(firebaseConfig);
-    database = getDatabase(firebaseApp);
-    dataRef = firebaseRef(database, 'campionatoData');
-    
-    // Assegna le funzioni Firebase alle variabili globali
-    ref = firebaseRef;
-    set = firebaseSet;
-    onValue = firebaseOnValue;
-    remove = firebaseRemove;
-    
-    isFirebaseConnected = true;
-    
-    console.log('✅ Firebase inizializzato con successo!');
-    return true;
-  } catch (error) {
-    console.error('❌ Errore inizializzazione Firebase:', error);
-    isFirebaseConnected = false;
-    return false;
+function toggleAdminFunctions() {
+  const isUserAdmin = isAdmin || (currentUser && ADMIN_USERS.includes(currentUser));
+  
+  const createTeamCard = document.getElementById('createTeamCard');
+  if (createTeamCard) {
+    createTeamCard.style.display = isUserAdmin ? 'block' : 'none';
+  }
+  
+  const createMatchCard = document.getElementById('createMatchCard');
+  if (createMatchCard) {
+    createMatchCard.style.display = isUserAdmin ? 'block' : 'none';
+  }
+  
+  const backupCard = document.getElementById('backupCard');
+  const backupUserView = document.getElementById('backupUserView');
+  if (backupCard && backupUserView) {
+    backupCard.style.display = isUserAdmin ? 'block' : 'none';
+    backupUserView.style.display = isUserAdmin ? 'none' : 'block';
   }
 }
 
-// ================ SISTEMA DI SINCRONIZZAZIONE ================
-function initSync() {
-  loadLocalData();
-  
-  if (isFirebaseConnected && dataRef && onValue) {
-    onValue(dataRef, (snapshot) => {
-      const remoteData = snapshot.val();
-      if (remoteData) {
-        const remoteTime = remoteData.lastUpdate || 0;
-        
-        if (remoteTime > lastUpdateTime) {
-          teamsData = remoteData.teams || [];
-          matchesData = remoteData.matches || [];
-          lastUpdateTime = remoteTime;
-          
-          renderAll();
-          updateSyncStatus(`🔄 Sync da Firebase`, true);
-          
-          saveLocalData();
-        }
-      }
-    }, (error) => {
-      console.error('Errore Firebase:', error);
-      updateSyncStatus('❌ Errore Firebase', false);
-    });
-  }
-  
-  syncInterval = setInterval(checkSync, 30000);
-}
-
+// ================ GESTIONE DATI ================
 function saveData() {
-  const data = {
-    teams: teamsData,
-    matches: matchesData,
-    lastUpdate: Date.now(),
-    lastUser: currentUser,
-    lastUserRole: currentUserRole,
-    version: '3.0-firebase'
-  };
-  
-  saveLocalData();
-  
-  if (isFirebaseConnected && dataRef && set) {
-    set(dataRef, data)
-      .then(() => {
-        updateSyncStatus('💾 Salvato su Firebase', true);
-      })
-      .catch((error) => {
-        console.error('Errore salvataggio Firebase:', error);
-        updateSyncStatus('❌ Errore Firebase', false);
-        isFirebaseConnected = false;
-      });
-  } else {
-    updateSyncStatus('💾 Salvato localmente', true);
-  }
-  
-  updateBackupInfo();
+  saveDataToFirebase();
 }
 
 function saveLocalData() {
@@ -1893,12 +2008,6 @@ function loadLocalData() {
     showToast('Errore nel caricamento dati locali', 'error');
     teamsData = [];
     matchesData = [];
-  }
-}
-
-function checkSync() {
-  if (isFirebaseConnected) {
-    saveData();
   }
 }
 
@@ -2831,10 +2940,17 @@ function updateBackupInfo() {
     totalEvents += m.events.length;
   });
   
+  // Per admin
   document.getElementById('backupTeamsCount').textContent = teamsData.length;
   document.getElementById('backupMatchesCount').textContent = matchesData.length;
   document.getElementById('backupPlayersCount').textContent = totalPlayers;
   document.getElementById('backupEventsCount').textContent = totalEvents;
+  
+  // Per utenti normali
+  document.getElementById('userBackupTeamsCount').textContent = teamsData.length;
+  document.getElementById('userBackupMatchesCount').textContent = matchesData.length;
+  document.getElementById('userBackupPlayersCount').textContent = totalPlayers;
+  document.getElementById('userBackupEventsCount').textContent = totalEvents;
 }
 
 // ================ RENDER ALL ================
@@ -2895,11 +3011,13 @@ document.addEventListener('DOMContentLoaded', async function() {
     document.getElementById('app').style.display = 'block';
     
     updateUserBadge();
+    toggleAdminFunctions();
     
     renderAll();
     
+    // Inizializza Firebase
     await initializeFirebase();
-    initSync();
+    initFirebaseSync();
   } else {
     document.getElementById('loginScreen').style.display = 'flex';
     document.getElementById('app').style.display = 'none';
