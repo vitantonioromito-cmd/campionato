@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>🏆 Campionato Arena</title>
 <style>
-/* CSS COMPLETO */
+/* CSS COMPLETO - SENZA MODIFICHE */
 :root {
   --bg: #0a192f;
   --card: #112240;
@@ -1427,22 +1427,35 @@ function loadScript(src) {
 function initFirebaseSync() {
   loadLocalData();
   
-  if (isFirebaseConnected) {
+  if (isFirebaseConnected && databaseRef) {
     // Ascolta cambiamenti in tempo reale da Firebase
     databaseRef.on('value', (snapshot) => {
       const remoteData = snapshot.val();
-      if (remoteData) {
+      if (remoteData && remoteData.teams && remoteData.matches) {
         const remoteTime = remoteData.lastUpdate || 0;
         
-        // Solo se i dati remoti sono più recenti
-        if (remoteTime > lastUpdateTime) {
+        console.log('📡 Dati ricevuti da Firebase:', {
+          remoteTime,
+          localTime: lastUpdateTime,
+          teams: remoteData.teams.length,
+          matches: remoteData.matches.length
+        });
+        
+        // Sincronizza sempre se i dati remoti sono più recenti
+        if (remoteTime > lastUpdateTime || teamsData.length === 0) {
+          console.log('🔄 Aggiornamento da Firebase in corso...');
           teamsData = remoteData.teams || [];
           matchesData = remoteData.matches || [];
           lastUpdateTime = remoteTime;
           
-          renderAll();
-          updateSyncStatus(`🔄 Sync da Firebase`, true);
+          // Salva localmente i dati sincronizzati
           saveLocalData();
+          
+          // Aggiorna l'interfaccia
+          renderAll();
+          
+          updateSyncStatus(`🔄 Sync da Firebase (${new Date(remoteTime).toLocaleTimeString()})`, true);
+          showToast('Dati sincronizzati da Firebase!', 'success');
         }
       }
     }, (error) => {
@@ -1451,9 +1464,10 @@ function initFirebaseSync() {
       isFirebaseConnected = false;
     });
     
-    // Sincronizza ogni 10 secondi
-    syncInterval = setInterval(syncData, 10000);
+    // Sincronizza ogni 5 secondi
+    syncInterval = setInterval(syncData, 5000);
   } else {
+    console.log('⚠️ Firebase non connesso, modalità offline');
     showToast('Modalità offline: i dati sono salvati solo localmente', 'warning');
   }
 }
@@ -1471,11 +1485,12 @@ function saveDataToFirebase() {
   // Salva sempre localmente prima
   saveLocalData();
   
-  if (isFirebaseConnected) {
+  if (isFirebaseConnected && databaseRef) {
     databaseRef.set(data)
       .then(() => {
         lastUpdateTime = data.lastUpdate;
         updateSyncStatus('💾 Salvato su Firebase & tutti i dispositivi', true);
+        console.log('✅ Dati salvati su Firebase');
       })
       .catch((error) => {
         console.error('Errore salvataggio Firebase:', error);
@@ -1484,25 +1499,27 @@ function saveDataToFirebase() {
       });
   } else {
     updateSyncStatus('💾 Salvato solo localmente', true);
+    console.log('⚠️ Dati salvati solo localmente (Firebase non disponibile)');
   }
   
   updateBackupInfo();
 }
 
 function syncData() {
-  if (isFirebaseConnected) {
+  if (isFirebaseConnected && databaseRef) {
     databaseRef.once('value')
       .then((snapshot) => {
         const remoteData = snapshot.val();
         if (remoteData) {
           const remoteTime = remoteData.lastUpdate || 0;
           if (remoteTime > lastUpdateTime) {
+            console.log('🔄 Sincronizzazione automatica da Firebase');
             teamsData = remoteData.teams || [];
             matchesData = remoteData.matches || [];
             lastUpdateTime = remoteTime;
             renderAll();
             saveLocalData();
-            updateSyncStatus('🔄 Sincronizzato con altri dispositivi', true);
+            updateSyncStatus('🔄 Sincronizzato automaticamente', true);
           }
         }
       })
@@ -1601,11 +1618,17 @@ function checkLogin() {
   
   // Inizializza Firebase se non è già stato fatto
   if (!firebaseInitialized) {
-    initializeFirebase().then(() => {
-      initFirebaseSync();
+    initializeFirebase().then((success) => {
+      if (success) {
+        initFirebaseSync();
+        renderAll();
+      } else {
+        renderAll(); // Renderizza comunque i dati locali
+      }
     });
   } else {
     initFirebaseSync();
+    renderAll();
   }
   
   const welcomeMsg = isAdmin ? 
