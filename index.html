@@ -1145,6 +1145,182 @@ button.small {
   background: rgba(255, 209, 102, 0.1);
   color: var(--warning);
 }
+
+/* Giornate Styling */
+.matchday-card {
+  background: rgba(10, 25, 47, 0.8);
+  border-radius: 20px;
+  padding: 24px;
+  margin-bottom: 25px;
+  border: 2px solid rgba(0, 212, 170, 0.2);
+  position: relative;
+  overflow: hidden;
+}
+
+.matchday-card.completed {
+  border-color: rgba(0, 212, 170, 0.5);
+  background: rgba(0, 212, 170, 0.05);
+}
+
+.matchday-card.completed::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: var(--accent);
+}
+
+.matchday-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 15px;
+  border-bottom: 1px solid rgba(136, 146, 176, 0.1);
+}
+
+.matchday-title {
+  font-size: 22px;
+  font-weight: 900;
+  color: var(--accent);
+}
+
+.matchday-meta {
+  font-size: 13px;
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.matchday-matches {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.matchday-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.drag-handle {
+  cursor: grab;
+  padding: 8px;
+  border-radius: 8px;
+  background: rgba(136, 146, 176, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.drag-handle:hover {
+  background: rgba(0, 212, 170, 0.1);
+}
+
+.dragging {
+  opacity: 0.5;
+  border: 2px dashed var(--accent);
+}
+
+.drop-zone {
+  border: 2px dashed rgba(0, 212, 170, 0.3);
+  border-radius: 12px;
+  padding: 20px;
+  text-align: center;
+  margin: 10px 0;
+  transition: all 0.3s ease;
+}
+
+.drop-zone.active {
+  border-color: var(--accent);
+  background: rgba(0, 212, 170, 0.05);
+}
+
+.matchday-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin-top: 15px;
+}
+
+.matchday-stat {
+  text-align: center;
+  padding: 10px;
+  background: rgba(136, 146, 176, 0.1);
+  border-radius: 10px;
+}
+
+.matchday-stat-value {
+  font-size: 18px;
+  font-weight: 900;
+  color: var(--accent);
+}
+
+.matchday-stat-label {
+  font-size: 11px;
+  color: var(--muted);
+  text-transform: uppercase;
+}
+
+/* Modal di conferma */
+.confirm-modal {
+  background: var(--card);
+  padding: 30px;
+  border-radius: 20px;
+  max-width: 400px;
+  text-align: center;
+}
+
+.confirm-title {
+  font-size: 20px;
+  font-weight: 700;
+  margin-bottom: 20px;
+  color: var(--warning);
+}
+
+.confirm-message {
+  margin-bottom: 25px;
+  line-height: 1.6;
+}
+
+.confirm-actions {
+  display: flex;
+  gap: 15px;
+  justify-content: center;
+}
+
+/* Calendario Layout */
+.cal-view-selector {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.cal-view-btn {
+  flex: 1;
+  padding: 12px;
+  border-radius: 12px;
+  border: 2px solid rgba(136, 146, 176, 0.2);
+  background: transparent;
+  color: var(--muted);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.cal-view-btn.active {
+  border-color: var(--accent);
+  background: rgba(0, 212, 170, 0.1);
+  color: var(--accent);
+}
+
+.cal-view-btn:hover {
+  background: rgba(0, 212, 170, 0.1);
+}
 </style>
 </head>
 <body>
@@ -1182,34 +1358,7 @@ button.small {
 
   <!-- Navigation -->
   <div class="nav">
-    <button class="active" onclick="openTab('squadre',this)">
-      <span class="nav-icon">👥</span>
-      <span>Squadre</span>
-    </button>
-    <button onclick="openTab('cal',this)">
-      <span class="nav-icon">📅</span>
-      <span>Partite</span>
-    </button>
-    <button onclick="openTab('class',this)">
-      <span class="nav-icon">🏆</span>
-      <span>Classifica</span>
-    </button>
-    <button onclick="openTab('stats',this)">
-      <span class="nav-icon">⭐</span>
-      <span>Statistiche</span>
-    </button>
-    <button onclick="openTab('myscore',this)">
-      <span class="nav-icon">👤</span>
-      <span>Il Mio Score</span>
-    </button>
-    <button onclick="openTab('backup',this)">
-      <span class="nav-icon">💾</span>
-      <span>Backup</span>
-    </button>
-    <button onclick="logout()">
-      <span class="nav-icon">🚪</span>
-      <span>Esci</span>
-    </button>
+    <!-- La navigazione verrà generata dinamicamente -->
   </div>
 
   <!-- Main Content -->
@@ -1226,18 +1375,42 @@ button.small {
       <div id="teams"></div>
     </section>
 
-    <!-- Partite -->
+    <!-- Calendario -->
     <section id="cal" class="section">
-      <div class="card" id="createMatchCard" style="display:none">
-        <h3>➕ Nuova Partita</h3>
-        <input type="date" id="matchDate">
-        <input type="time" id="matchTime">
-        <select id="homeTeam"></select>
-        <select id="awayTeam"></select>
-        <button onclick="addMatch()">CREA PARTITA</button>
+      <!-- Vista Admin -->
+      <div id="calAdminView" style="display:none">
+        <div class="card" id="createMatchCard">
+          <h3>➕ Nuova Partita</h3>
+          <input type="date" id="matchDate">
+          <input type="time" id="matchTime">
+          <select id="homeTeam"></select>
+          <select id="awayTeam"></select>
+          <div class="match-actions">
+            <button onclick="addMatch()">CREA PARTITA</button>
+            <button class="secondary" onclick="toggleMatchdayMode()">📅 MODALITÀ GIORNATE</button>
+          </div>
+        </div>
+
+        <!-- Gestione Giornate -->
+        <div class="card" id="matchdayAdminCard">
+          <h3>📅 Gestione Giornate</h3>
+          <div class="match-actions">
+            <button onclick="createNewMatchday()">➕ NUOVA GIORNATA</button>
+            <button class="secondary" onclick="toggleEditMode()">✏️ MODIFICA GIORNATE</button>
+          </div>
+        </div>
+
+        <!-- Lista Giornate -->
+        <div id="matchdaysList"></div>
       </div>
-      <div id="matches"></div>
-      <div id="tabellino" class="card" style="display:none"></div>
+
+      <!-- Vista Utente -->
+      <div id="calUserView" style="display:none">
+        <div class="card">
+          <h3>📅 Calendario Partite</h3>
+          <div id="userMatchesList"></div>
+        </div>
+      </div>
     </section>
 
     <!-- Classifica -->
@@ -1294,9 +1467,9 @@ button.small {
       <div id="myScoreDetails"></div>
     </section>
 
-    <!-- Backup -->
-    <section id="backup" class="section">
-      <div class="card" id="backupCard" style="display:none">
+    <!-- Backup (SOLO PER ADMIN) -->
+    <section id="backup" class="section" style="display:none">
+      <div class="card" id="backupCard">
         <h3>💾 Backup & Ripristino</h3>
         <div class="backup-grid">
           <div class="backup-card">
@@ -1322,32 +1495,6 @@ button.small {
         </div>
         <div style="margin-top: 20px;">
           <button class="danger" onclick="resetData()">🗑️ RESET DATI</button>
-        </div>
-      </div>
-      <div id="backupUserView" class="card">
-        <h3>💾 Informazioni Backup</h3>
-        <div class="backup-grid">
-          <div class="backup-card">
-            <div class="backup-value" id="userBackupTeamsCount">0</div>
-            <div class="backup-label">Squadre</div>
-          </div>
-          <div class="backup-card">
-            <div class="backup-value" id="userBackupMatchesCount">0</div>
-            <div class="backup-label">Partite</div>
-          </div>
-          <div class="backup-card">
-            <div class="backup-value" id="userBackupPlayersCount">0</div>
-            <div class="backup-label">Giocatori</div>
-          </div>
-          <div class="backup-card">
-            <div class="backup-value" id="userBackupEventsCount">0</div>
-            <div class="backup-label">Eventi</div>
-          </div>
-        </div>
-        <div style="margin-top: 20px; padding: 20px; background: rgba(0,212,170,0.05); border-radius: 12px;">
-          <div style="font-size: 14px; color: var(--muted); text-align: center;">
-            Solo gli admin possono esportare/importare dati
-          </div>
         </div>
       </div>
     </section>
@@ -1403,6 +1550,40 @@ button.small {
   </div>
 </div>
 
+<!-- Edit Matchday Modal -->
+<div id="editMatchdayModal" class="modal" style="display:none">
+  <div class="modal-content">
+    <div class="modal-header">
+      <div class="modal-title">📅 Modifica Giornata</div>
+      <button class="modal-close" onclick="closeEditMatchdayModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="text" id="editMatchdayName" placeholder="Nome giornata (es: Giornata 1)">
+      <input type="date" id="editMatchdayDate">
+      <textarea id="editMatchdayNotes" placeholder="Note (opzionale)" rows="3"></textarea>
+      <div class="match-actions" style="margin-top: 20px">
+        <button onclick="saveMatchdayEdit()">💾 SALVA</button>
+        <button class="secondary" onclick="closeEditMatchdayModal()">❌ ANNULLA</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Confirm Modal -->
+<div id="confirmModal" class="modal" style="display:none">
+  <div class="confirm-modal">
+    <div class="confirm-title" id="confirmTitle">Conferma Azione</div>
+    <div class="confirm-message" id="confirmMessage"></div>
+    <div class="confirm-actions">
+      <button class="danger" id="confirmActionBtn">CONFERMA</button>
+      <button class="secondary" onclick="closeConfirmModal()">ANNULLA</button>
+    </div>
+  </div>
+</div>
+
+<!-- Tabellino (sempre presente) -->
+<div id="tabellino" class="card" style="display:none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 90%; max-width: 500px; max-height: 90vh; overflow-y: auto; z-index: 1000; background: var(--card);"></div>
+
 <script>
 // ================ VARIABILI GLOBALI ================
 const COLORS = [
@@ -1416,6 +1597,7 @@ let currentUserIcon = "👤";
 let isAdmin = false;
 let teamsData = [];
 let matchesData = [];
+let matchdaysData = [];
 let selectedColor = COLORS[4];
 let lastUpdateTime = 0;
 let syncInterval = null;
@@ -1423,14 +1605,94 @@ let pendingAdminAction = null;
 let isFirebaseConnected = false;
 let passwordFieldShown = false;
 
-// Variabili per la modifica giocatori
+// Variabili per la modifica
 let editingTeamId = null;
 let editingPlayerId = null;
+let editingMatchdayId = null;
+let isEditMode = false;
+let isMatchdayMode = true;
+let draggingMatchId = null;
+let draggingMatchdayId = null;
 
 // Firebase
 let firebaseApp, firebaseDatabase;
 let databaseRef;
 let firebaseInitialized = false;
+
+// ================ FUNZIONE PER AGGIORNARE NAVIGAZIONE ================
+function updateNavigation() {
+  const nav = document.querySelector('.nav');
+  const isUserAdmin = isAdmin || (currentUser && ADMIN_USERS.includes(currentUser));
+  
+  // Ricrea la navigazione in base ai permessi
+  nav.innerHTML = '';
+  
+  // Tab Squadre
+  const squadreBtn = document.createElement('button');
+  squadreBtn.className = 'active';
+  squadreBtn.onclick = () => openTab('squadre', squadreBtn);
+  squadreBtn.innerHTML = `
+    <span class="nav-icon">👥</span>
+    <span>Squadre</span>
+  `;
+  nav.appendChild(squadreBtn);
+  
+  // Tab Calendario
+  const calBtn = document.createElement('button');
+  calBtn.onclick = () => openTab('cal', calBtn);
+  calBtn.innerHTML = `
+    <span class="nav-icon">📅</span>
+    <span>Calendario</span>
+  `;
+  nav.appendChild(calBtn);
+  
+  // Tab Classifica
+  const classBtn = document.createElement('button');
+  classBtn.onclick = () => openTab('class', classBtn);
+  classBtn.innerHTML = `
+    <span class="nav-icon">🏆</span>
+    <span>Classifica</span>
+  `;
+  nav.appendChild(classBtn);
+  
+  // Tab Statistiche
+  const statsBtn = document.createElement('button');
+  statsBtn.onclick = () => openTab('stats', statsBtn);
+  statsBtn.innerHTML = `
+    <span class="nav-icon">⭐</span>
+    <span>Statistiche</span>
+  `;
+  nav.appendChild(statsBtn);
+  
+  // Tab Il Mio Score
+  const myscoreBtn = document.createElement('button');
+  myscoreBtn.onclick = () => openTab('myscore', myscoreBtn);
+  myscoreBtn.innerHTML = `
+    <span class="nav-icon">👤</span>
+    <span>Il Mio Score</span>
+  `;
+  nav.appendChild(myscoreBtn);
+  
+  // Tab Backup (SOLO ADMIN)
+  if (isUserAdmin) {
+    const backupBtn = document.createElement('button');
+    backupBtn.onclick = () => openTab('backup', backupBtn);
+    backupBtn.innerHTML = `
+      <span class="nav-icon">💾</span>
+      <span>Backup</span>
+    `;
+    nav.appendChild(backupBtn);
+  }
+  
+  // Tab Esci
+  const logoutBtn = document.createElement('button');
+  logoutBtn.onclick = logout;
+  logoutBtn.innerHTML = `
+    <span class="nav-icon">🚪</span>
+    <span>Esci</span>
+  `;
+  nav.appendChild(logoutBtn);
+}
 
 // ================ FIREBASE INIZIALIZATION ================
 async function initializeFirebase() {
@@ -1489,6 +1751,7 @@ function initFirebaseSync() {
         if (remoteTime > lastUpdateTime) {
           teamsData = remoteData.teams || [];
           matchesData = remoteData.matches || [];
+          matchdaysData = remoteData.matchdays || [];
           lastUpdateTime = remoteTime;
           
           renderAll();
@@ -1513,10 +1776,11 @@ function saveDataToFirebase() {
   const data = {
     teams: teamsData,
     matches: matchesData,
+    matchdays: matchdaysData,
     lastUpdate: Date.now(),
     lastUser: currentUser,
     lastUserRole: currentUserRole,
-    version: '3.0-firebase'
+    version: '4.0-matchdays'
   };
   
   saveLocalData();
@@ -1548,6 +1812,7 @@ function syncData() {
           if (remoteTime > lastUpdateTime) {
             teamsData = remoteData.teams || [];
             matchesData = remoteData.matches || [];
+            matchdaysData = remoteData.matchdays || [];
             lastUpdateTime = remoteTime;
             renderAll();
             saveLocalData();
@@ -1646,6 +1911,7 @@ async function checkLogin() {
   document.getElementById('app').style.display = 'block';
   
   updateUserBadge();
+  updateNavigation();
   toggleAdminFunctions();
   
   if (!firebaseInitialized) {
@@ -1669,18 +1935,42 @@ const ADMIN_USERS = ['Vitantonio', 'Fabrizio', 'Jacopo'];
 
 // ================ FUNZIONI NAVIGAZIONE ================
 function openTab(id, btn) {
-  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
-  document.getElementById(id).classList.add('active');
+  // Nascondi tutte le sezioni
+  document.querySelectorAll('.section').forEach(s => {
+    s.classList.remove('active');
+    s.style.display = 'none';
+  });
+  
+  // Mostra solo la sezione selezionata
+  const selectedSection = document.getElementById(id);
+  if (selectedSection) {
+    selectedSection.classList.add('active');
+    selectedSection.style.display = 'block';
+  }
+  
+  // Aggiorna navigazione
   document.querySelectorAll('.nav button').forEach(x => x.classList.remove('active'));
   btn.classList.add('active');
   
   toggleAdminFunctions();
   
+  // Render specifico per ogni tab
   switch(id) {
-    case 'class': renderClassifica(); break;
-    case 'stats': renderStats(); break;
-    case 'myscore': renderMyScore(); break;
-    case 'backup': renderBackup(); break;
+    case 'cal':
+      renderCalendario();
+      break;
+    case 'class': 
+      renderClassifica(); 
+      break;
+    case 'stats': 
+      renderStats(); 
+      break;
+    case 'myscore': 
+      renderMyScore(); 
+      break;
+    case 'backup': 
+      renderBackup(); 
+      break;
   }
 }
 
@@ -1974,6 +2264,191 @@ function renderTeams() {
   initPalette();
 }
 
+// ================ SISTEMA GIORNATE ================
+function createNewMatchday() {
+  if (!isAdmin) {
+    showAdminModal(createNewMatchday);
+    return;
+  }
+  
+  const matchdayNumber = matchdaysData.length + 1;
+  const newMatchday = {
+    id: Date.now(),
+    name: `Giornata ${matchdayNumber}`,
+    date: new Date().toISOString().split('T')[0],
+    notes: '',
+    matches: [],
+    completed: false,
+    createdBy: currentUser,
+    createdAt: new Date().toLocaleString()
+  };
+  
+  matchdaysData.push(newMatchday);
+  saveData();
+  renderCalendario();
+  showToast(`Giornata ${matchdayNumber} creata!`, 'success');
+}
+
+function toggleEditMode() {
+  isEditMode = !isEditMode;
+  renderCalendario();
+  showToast(`Modalità modifica ${isEditMode ? 'ATTIVATA' : 'DISATTIVATA'}`, 'info');
+}
+
+function toggleMatchdayMode() {
+  isMatchdayMode = !isMatchdayMode;
+  renderCalendario();
+  showToast(`Modalità giornate ${isMatchdayMode ? 'ATTIVATA' : 'DISATTIVATA'}`, 'info');
+}
+
+function editMatchday(matchdayId) {
+  if (!isAdmin) {
+    showAdminModal(() => editMatchday(matchdayId));
+    return;
+  }
+  
+  const matchday = matchdaysData.find(m => m.id === matchdayId);
+  if (!matchday) return;
+  
+  editingMatchdayId = matchdayId;
+  
+  document.getElementById('editMatchdayName').value = matchday.name;
+  document.getElementById('editMatchdayDate').value = matchday.date;
+  document.getElementById('editMatchdayNotes').value = matchday.notes || '';
+  document.getElementById('editMatchdayModal').style.display = 'flex';
+  document.getElementById('editMatchdayName').focus();
+}
+
+function closeEditMatchdayModal() {
+  document.getElementById('editMatchdayModal').style.display = 'none';
+  editingMatchdayId = null;
+}
+
+function saveMatchdayEdit() {
+  if (!editingMatchdayId) return;
+  
+  const newName = document.getElementById('editMatchdayName').value.trim();
+  const newDate = document.getElementById('editMatchdayDate').value;
+  const newNotes = document.getElementById('editMatchdayNotes').value;
+  
+  if (!newName) {
+    showToast('Il nome della giornata non può essere vuoto', 'warning');
+    return;
+  }
+  
+  const matchday = matchdaysData.find(m => m.id === editingMatchdayId);
+  if (!matchday) return;
+  
+  matchday.name = newName;
+  matchday.date = newDate;
+  matchday.notes = newNotes;
+  
+  saveData();
+  renderCalendario();
+  closeEditMatchdayModal();
+  showToast(`Giornata "${newName}" modificata!`, 'success');
+}
+
+function toggleMatchdayCompletion(matchdayId) {
+  if (!isAdmin) {
+    showAdminModal(() => toggleMatchdayCompletion(matchdayId));
+    return;
+  }
+  
+  const matchday = matchdaysData.find(m => m.id === matchdayId);
+  if (!matchday) return;
+  
+  matchday.completed = !matchday.completed;
+  
+  // Se completiamo la giornata, completiamo anche tutte le partite
+  if (matchday.completed) {
+    matchday.matches.forEach(matchId => {
+      const match = matchesData.find(m => m.id === matchId);
+      if (match && !match.completed) {
+        match.completed = true;
+        match.completedBy = currentUser;
+        match.completedAt = new Date().toLocaleString();
+        
+        // Aggiorna presenze giocatori
+        const homeTeam = teamsData.find(t => t.name === match.home);
+        const awayTeam = teamsData.find(t => t.name === match.away);
+        
+        [homeTeam, awayTeam].forEach(team => {
+          if (team) {
+            team.players.forEach(player => {
+              player.presenze = (player.presenze || 0) + 1;
+            });
+          }
+        });
+      }
+    });
+    
+    matchday.completedBy = currentUser;
+    matchday.completedAt = new Date().toLocaleString();
+  } else {
+    // Se annulliamo il completamento, annulliamo anche le partite
+    matchday.matches.forEach(matchId => {
+      const match = matchesData.find(m => m.id === matchId);
+      if (match && match.completed) {
+        match.completed = false;
+        
+        // Riduci presenze giocatori
+        const homeTeam = teamsData.find(t => t.name === match.home);
+        const awayTeam = teamsData.find(t => t.name === match.away);
+        
+        [homeTeam, awayTeam].forEach(team => {
+          if (team) {
+            team.players.forEach(player => {
+              player.presenze = Math.max(0, (player.presenze || 0) - 1);
+            });
+          }
+        });
+      }
+    });
+  }
+  
+  saveData();
+  renderCalendario();
+  renderClassifica();
+  renderStats();
+  
+  showToast(matchday.completed ? 'Giornata completata!' : 'Completamento giornata annullato!', 'success');
+}
+
+function deleteMatchday(matchdayId) {
+  if (!isAdmin) {
+    showAdminModal(() => deleteMatchday(matchdayId));
+    return;
+  }
+  
+  const matchday = matchdaysData.find(m => m.id === matchdayId);
+  if (!matchday) return;
+  
+  showConfirmModal(
+    'Elimina Giornata',
+    `Vuoi eliminare "${matchday.name}"?<br><br>
+    <strong>${matchday.matches.length} partite</strong> saranno:<br>
+    1. Eliminate definitivamente<br>
+    2. Spostate tra le partite non assegnate`,
+    () => {
+      // Rimuovi le partite dalla giornata
+      matchday.matches.forEach(matchId => {
+        const match = matchesData.find(m => m.id === matchId);
+        if (match) {
+          match.matchdayId = null;
+        }
+      });
+      
+      // Elimina la giornata
+      matchdaysData = matchdaysData.filter(m => m.id !== matchdayId);
+      
+      saveData();
+      renderCalendario();
+      showToast(`Giornata "${matchday.name}" eliminata!`, 'success');
+    }
+  );
+}
+
 // ================ FUNZIONI PARTITE ================
 function addMatch() {
   if (!isAdmin) {
@@ -2004,6 +2479,7 @@ function addMatch() {
     away,
     scoreHome: 0,
     scoreAway: 0,
+    matchdayId: null,
     events: [],
     completed: false,
     createdBy: currentUser,
@@ -2011,7 +2487,7 @@ function addMatch() {
   };
   
   matchesData.push(newMatch);
-  renderMatches();
+  renderCalendario();
   saveData();
   showToast(`Partita creata!`, 'success');
   
@@ -2021,85 +2497,55 @@ function addMatch() {
   document.getElementById('awayTeam').selectedIndex = 0;
 }
 
-function renderMatches() {
-  const matchesDiv = document.getElementById('matches');
-  matchesDiv.innerHTML = '';
-  
-  if (matchesData.length === 0) {
-    matchesDiv.innerHTML = `
-      <div class="empty-state">
-        <div class="empty-icon">📅</div>
-        <div class="empty-text">Nessuna partita programmata<br>Crea la prima partita!</div>
-      </div>
-    `;
+function assignMatchToMatchday(matchId, matchdayId) {
+  if (!isAdmin) {
+    showAdminModal(() => assignMatchToMatchday(matchId, matchdayId));
     return;
   }
   
-  matchesData.sort((a, b) => new Date(b.date) - new Date(a.date));
+  const match = matchesData.find(m => m.id === matchId);
+  const matchday = matchdaysData.find(m => m.id === matchdayId);
   
-  matchesData.forEach(match => {
-    const homeTeam = teamsData.find(t => t.name === match.home);
-    const awayTeam = teamsData.find(t => t.name === match.away);
-    
-    const matchCard = document.createElement('div');
-    matchCard.className = 'match-card';
-    
-    let golHome = match.scoreHome || 0;
-    let golAway = match.scoreAway || 0;
-    
-    golHome = Math.max(0, golHome);
-    golAway = Math.max(0, golAway);
-    
-    const adminActions = isAdmin ? `
-      <div class="match-actions">
-        <button onclick="openTabellino(${match.id})">📋 GESTISCI</button>
-        <button class="secondary" onclick="deleteMatch(${match.id})">🗑️ ELIMINA</button>
-      </div>
-    ` : `
-      <div class="match-actions">
-        <button onclick="openTabellino(${match.id})">📋 VISUALIZZA</button>
-      </div>
-    `;
-    
-    matchCard.innerHTML = `
-      <div class="match-header">
-        <div class="match-date">
-          ${new Date(match.date).toLocaleDateString('it-IT', { weekday: 'short', day: 'numeric', month: 'short' })} ${match.time}
-        </div>
-        <div class="match-creator">${match.createdBy}</div>
-      </div>
-      
-      <div class="match-teams">
-        <div class="team-display">
-          <div class="team-badge" style="background: ${homeTeam?.color || '#333'}">${match.home.charAt(0)}</div>
-          <div class="team-name">${match.home}</div>
-        </div>
-        
-        <div class="vs-divider">VS</div>
-        
-        <div class="team-display">
-          <div class="team-badge" style="background: ${awayTeam?.color || '#333'}">${match.away.charAt(0)}</div>
-          <div class="team-name">${match.away}</div>
-        </div>
-      </div>
-      
-      <div class="match-score">
-        <span style="color: ${homeTeam?.color || '#fff'}">${golHome}</span>
-        <span style="font-size: 24px; color: var(--muted)">-</span>
-        <span style="color: ${awayTeam?.color || '#fff'}">${golAway}</span>
-      </div>
-      
-      ${adminActions}
-      
-      <div style="display: flex; justify-content: center; margin-top: 15px">
-        <span class="status-badge ${match.completed ? 'completed' : 'pending'}">
-          ${match.completed ? '✅ COMPLETATA' : '⏳ DA GIOCARE'}
-        </span>
-      </div>
-    `;
-    
-    matchesDiv.appendChild(matchCard);
-  });
+  if (!match || !matchday) return;
+  
+  // Rimuovi da eventuale giornata precedente
+  if (match.matchdayId) {
+    const oldMatchday = matchdaysData.find(m => m.id === match.matchdayId);
+    if (oldMatchday) {
+      oldMatchday.matches = oldMatchday.matches.filter(id => id !== matchId);
+    }
+  }
+  
+  // Aggiungi alla nuova giornata
+  match.matchdayId = matchdayId;
+  if (!matchday.matches.includes(matchId)) {
+    matchday.matches.push(matchId);
+  }
+  
+  saveData();
+  renderCalendario();
+  showToast(`Partita assegnata a ${matchday.name}!`, 'success');
+}
+
+function removeMatchFromMatchday(matchId) {
+  if (!isAdmin) {
+    showAdminModal(() => removeMatchFromMatchday(matchId));
+    return;
+  }
+  
+  const match = matchesData.find(m => m.id === matchId);
+  if (!match || !match.matchdayId) return;
+  
+  const matchday = matchdaysData.find(m => m.id === match.matchdayId);
+  if (matchday) {
+    matchday.matches = matchday.matches.filter(id => id !== matchId);
+  }
+  
+  match.matchdayId = null;
+  
+  saveData();
+  renderCalendario();
+  showToast('Partita rimossa dalla giornata!', 'success');
 }
 
 function deleteMatch(matchId) {
@@ -2110,12 +2556,466 @@ function deleteMatch(matchId) {
   
   if (!confirm('Eliminare questa partita?\nTutti gli eventi saranno rimossi.')) return;
   
+  const match = matchesData.find(m => m.id === matchId);
+  
+  // Rimuovi dalla giornata se presente
+  if (match && match.matchdayId) {
+    const matchday = matchdaysData.find(m => m.id === match.matchdayId);
+    if (matchday) {
+      matchday.matches = matchday.matches.filter(id => id !== matchId);
+    }
+  }
+  
   matchesData = matchesData.filter(m => m.id !== matchId);
   saveData();
-  renderMatches();
+  renderCalendario();
   renderClassifica();
   renderStats();
   showToast('Partita eliminata!', 'success');
+}
+
+// ================ RENDER CALENDARIO ================
+function renderCalendario() {
+  const isUserAdmin = isAdmin || (currentUser && ADMIN_USERS.includes(currentUser));
+  
+  if (isUserAdmin) {
+    document.getElementById('calAdminView').style.display = 'block';
+    document.getElementById('calUserView').style.display = 'none';
+    renderAdminCalendario();
+  } else {
+    document.getElementById('calAdminView').style.display = 'none';
+    document.getElementById('calUserView').style.display = 'block';
+    renderUserCalendario();
+  }
+}
+
+function renderAdminCalendario() {
+  const matchdaysList = document.getElementById('matchdaysList');
+  const unassignedMatches = matchesData.filter(m => !m.matchdayId);
+  
+  matchdaysList.innerHTML = '';
+  
+  // Mostra giornate
+  if (matchdaysData.length > 0) {
+    matchdaysData.forEach(matchday => {
+      const matchdayCard = document.createElement('div');
+      matchdayCard.className = `matchday-card ${matchday.completed ? 'completed' : ''}`;
+      matchdayCard.id = `matchday-${matchday.id}`;
+      
+      const matchdayMatches = matchesData.filter(m => m.matchdayId === matchday.id);
+      let matchesHTML = '';
+      
+      if (matchdayMatches.length > 0) {
+        matchdayMatches.forEach(match => {
+          const homeTeam = teamsData.find(t => t.name === match.home);
+          const awayTeam = teamsData.find(t => t.name === match.away);
+          
+          matchesHTML += `
+            <div class="match-card ${isEditMode ? 'draggable' : ''}" 
+                 id="match-${match.id}"
+                 data-match-id="${match.id}"
+                 draggable="${isEditMode}"
+                 ondragstart="dragMatchStart(event, ${match.id}, ${matchday.id})"
+                 ondragend="dragMatchEnd(event)">
+              <div style="display: flex; justify-content: space-between; align-items: center">
+                <div style="flex: 1">
+                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px">
+                    <div style="font-weight: 700; color: ${homeTeam?.color || '#fff'}">${match.home}</div>
+                    <div style="font-size: 24px; font-weight: 900">
+                      <span style="color: ${homeTeam?.color || '#fff'}">${match.scoreHome}</span>
+                      <span style="color: var(--muted); margin: 0 10px">-</span>
+                      <span style="color: ${awayTeam?.color || '#fff'}">${match.scoreAway}</span>
+                    </div>
+                    <div style="font-weight: 700; color: ${awayTeam?.color || '#fff'}">${match.away}</div>
+                  </div>
+                  <div style="font-size: 12px; color: var(--muted); text-align: center">
+                    ${new Date(match.date).toLocaleDateString('it-IT')} ${match.time}
+                  </div>
+                </div>
+                ${isEditMode ? `
+                <div class="drag-handle" style="margin-left: 10px">↕️</div>
+                ` : ''}
+              </div>
+              
+              <div class="match-actions" style="margin-top: 15px">
+                <button onclick="openTabellino(${match.id})" style="flex: 2">📋 GESTISCI</button>
+                ${isEditMode ? `
+                <button class="secondary" onclick="removeMatchFromMatchday(${match.id})" style="flex: 1">➖</button>
+                ` : `
+                <button class="danger" onclick="deleteMatch(${match.id})" style="flex: 1">🗑️</button>
+                `}
+              </div>
+            </div>
+          `;
+        });
+      } else {
+        matchesHTML = `
+          <div class="drop-zone" 
+               id="drop-zone-${matchday.id}"
+               ondragover="dragOver(event)"
+               ondrop="dropMatch(event, ${matchday.id})">
+            Trascina qui le partite
+          </div>
+        `;
+      }
+      
+      // Calcola statistiche giornata
+      const completedMatches = matchdayMatches.filter(m => m.completed).length;
+      const totalGoals = matchdayMatches.reduce((sum, m) => sum + (m.scoreHome || 0) + (m.scoreAway || 0), 0);
+      
+      matchdayCard.innerHTML = `
+        <div class="matchday-header">
+          <div>
+            <div class="matchday-title">${matchday.name}</div>
+            <div class="matchday-meta">
+              <span>${new Date(matchday.date).toLocaleDateString('it-IT')}</span>
+              <span>•</span>
+              <span>${matchdayMatches.length} partite</span>
+              <span>•</span>
+              <span class="status-badge ${matchday.completed ? 'completed' : 'pending'}">
+                ${matchday.completed ? '✅ COMPLETATA' : '⏳ DA GIOCARE'}
+              </span>
+            </div>
+          </div>
+          <div class="matchday-actions">
+            <button class="small" onclick="editMatchday(${matchday.id})">✏️</button>
+            <button class="small secondary" onclick="toggleMatchdayCompletion(${matchday.id})">
+              ${matchday.completed ? '↩️' : '✅'}
+            </button>
+            <button class="small danger" onclick="deleteMatchday(${matchday.id})">🗑️</button>
+          </div>
+        </div>
+        
+        ${matchday.notes ? `
+        <div style="background: rgba(136, 146, 176, 0.1); padding: 12px; border-radius: 10px; margin-bottom: 15px; font-size: 13px">
+          ${matchday.notes}
+        </div>
+        ` : ''}
+        
+        <div class="matchday-stats">
+          <div class="matchday-stat">
+            <div class="matchday-stat-value">${matchdayMatches.length}</div>
+            <div class="matchday-stat-label">Partite</div>
+          </div>
+          <div class="matchday-stat">
+            <div class="matchday-stat-value">${completedMatches}</div>
+            <div class="matchday-stat-label">Giocate</div>
+          </div>
+          <div class="matchday-stat">
+            <div class="matchday-stat-value">${totalGoals}</div>
+            <div class="matchday-stat-label">Gol</div>
+          </div>
+          <div class="matchday-stat">
+            <div class="matchday-stat-value">${matchday.completed ? '✅' : '⏳'}</div>
+            <div class="matchday-stat-label">Stato</div>
+          </div>
+        </div>
+        
+        <div class="matchday-matches">
+          ${matchesHTML}
+        </div>
+        
+        ${isEditMode ? `
+        <div class="drop-zone" 
+             id="drop-zone-${matchday.id}"
+             ondragover="dragOver(event)"
+             ondrop="dropMatch(event, ${matchday.id})">
+          ➕ Trascina qui per aggiungere partite
+        </div>
+        ` : ''}
+      `;
+      
+      matchdaysList.appendChild(matchdayCard);
+    });
+  } else {
+    matchdaysList.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-icon">📅</div>
+        <div class="empty-text">Nessuna giornata creata<br>Crea la prima giornata!</div>
+      </div>
+    `;
+  }
+  
+  // Mostra partite non assegnate
+  if (unassignedMatches.length > 0) {
+    const unassignedCard = document.createElement('div');
+    unassignedCard.className = 'matchday-card';
+    unassignedCard.innerHTML = `
+      <div class="matchday-header">
+        <div>
+          <div class="matchday-title">🗂️ Partite Non Assegnate</div>
+          <div class="matchday-meta">
+            <span>${unassignedMatches.length} partite senza giornata</span>
+          </div>
+        </div>
+        ${isEditMode ? `
+        <div style="font-size: 12px; color: var(--warning); font-weight: 700">
+          MODALITÀ MODIFICA
+        </div>
+        ` : ''}
+      </div>
+      
+      <div class="matchday-matches">
+        ${unassignedMatches.map(match => {
+          const homeTeam = teamsData.find(t => t.name === match.home);
+          const awayTeam = teamsData.find(t => t.name === match.away);
+          
+          return `
+            <div class="match-card ${isEditMode ? 'draggable' : ''}" 
+                 id="match-${match.id}"
+                 data-match-id="${match.id}"
+                 draggable="${isEditMode}"
+                 ondragstart="dragMatchStart(event, ${match.id}, null)"
+                 ondragend="dragMatchEnd(event)">
+              <div style="display: flex; justify-content: space-between; align-items: center">
+                <div style="flex: 1">
+                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px">
+                    <div style="font-weight: 700; color: ${homeTeam?.color || '#fff'}">${match.home}</div>
+                    <div style="font-size: 24px; font-weight: 900">
+                      <span style="color: ${homeTeam?.color || '#fff'}">${match.scoreHome}</span>
+                      <span style="color: var(--muted); margin: 0 10px">-</span>
+                      <span style="color: ${awayTeam?.color || '#fff'}">${match.scoreAway}</span>
+                    </div>
+                    <div style="font-weight: 700; color: ${awayTeam?.color || '#fff'}">${match.away}</div>
+                  </div>
+                  <div style="font-size: 12px; color: var(--muted); text-align: center">
+                    ${new Date(match.date).toLocaleDateString('it-IT')} ${match.time}
+                  </div>
+                </div>
+                ${isEditMode ? `
+                <div class="drag-handle" style="margin-left: 10px">↕️</div>
+                ` : ''}
+              </div>
+              
+              <div class="match-actions" style="margin-top: 15px">
+                <button onclick="openTabellino(${match.id})" style="flex: 2">📋 GESTISCI</button>
+                ${isEditMode ? `
+                <button class="secondary" onclick="showAssignModal(${match.id})" style="flex: 1">➕</button>
+                ` : `
+                <button class="danger" onclick="deleteMatch(${match.id})" style="flex: 1">🗑️</button>
+                `}
+              </div>
+            </div>
+          `;
+        }).join('')}
+      </div>
+      
+      ${isEditMode && matchdaysData.length > 0 ? `
+      <div style="margin-top: 20px; padding: 15px; background: rgba(0,212,170,0.05); border-radius: 12px; text-align: center">
+        <div style="font-size: 13px; color: var(--muted); margin-bottom: 10px">
+          💡 <strong>Modalità modifica attiva:</strong> Trascina le partite nelle giornate
+        </div>
+        <div style="font-size: 12px; color: var(--muted)">
+          Clicca "+" per assegnare manualmente una partita
+        </div>
+      </div>
+      ` : ''}
+    `;
+    
+    matchdaysList.appendChild(unassignedCard);
+  }
+}
+
+function renderUserCalendario() {
+  const userMatchesList = document.getElementById('userMatchesList');
+  
+  if (matchdaysData.length === 0 && matchesData.length === 0) {
+    userMatchesList.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-icon">📅</div>
+        <div class="empty-text">Nessuna partita programmata<br>Il calendario verrà pubblicato a breve!</div>
+      </div>
+    `;
+    return;
+  }
+  
+  let calendarHTML = '';
+  
+  // Mostra prima le giornate
+  matchdaysData.forEach(matchday => {
+    const matchdayMatches = matchesData.filter(m => m.matchdayId === matchday.id);
+    
+    if (matchdayMatches.length > 0) {
+      calendarHTML += `
+        <div class="matchday-card ${matchday.completed ? 'completed' : ''}" style="margin-bottom: 25px">
+          <div class="matchday-header">
+            <div>
+              <div class="matchday-title">${matchday.name}</div>
+              <div class="matchday-meta">
+                <span>${new Date(matchday.date).toLocaleDateString('it-IT')}</span>
+                <span>•</span>
+                <span>${matchdayMatches.length} partite</span>
+                <span>•</span>
+                <span class="status-badge ${matchday.completed ? 'completed' : 'pending'}">
+                  ${matchday.completed ? '✅ COMPLETATA' : '⏳ DA GIOCARE'}
+                </span>
+              </div>
+            </div>
+          </div>
+          
+          <div class="matchday-matches">
+            ${matchdayMatches.map(match => {
+              const homeTeam = teamsData.find(t => t.name === match.home);
+              const awayTeam = teamsData.find(t => t.name === match.away);
+              const isUserInMatch = currentUser && (
+                homeTeam?.players?.some(p => p.name.toLowerCase() === currentUser.toLowerCase()) ||
+                awayTeam?.players?.some(p => p.name.toLowerCase() === currentUser.toLowerCase())
+              );
+              
+              return `
+                <div class="match-card" style="${isUserInMatch ? 'border: 2px solid var(--yellow);' : ''}">
+                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px">
+                    <div style="font-weight: 700; color: ${homeTeam?.color || '#fff'}">${match.home}</div>
+                    <div style="font-size: 24px; font-weight: 900">
+                      <span style="color: ${homeTeam?.color || '#fff'}">${match.scoreHome}</span>
+                      <span style="color: var(--muted); margin: 0 10px">-</span>
+                      <span style="color: ${awayTeam?.color || '#fff'}">${match.scoreAway}</span>
+                    </div>
+                    <div style="font-weight: 700; color: ${awayTeam?.color || '#fff'}">${match.away}</div>
+                  </div>
+                  <div style="font-size: 12px; color: var(--muted); text-align: center; margin-bottom: 10px">
+                    ${new Date(match.date).toLocaleDateString('it-IT')} ${match.time}
+                    ${isUserInMatch ? ' • 👤 TUA SQUADRA' : ''}
+                  </div>
+                  <button onclick="openTabellino(${match.id})" style="width: 100%">📋 DETTAGLI</button>
+                </div>
+              `;
+            }).join('')}
+          </div>
+        </div>
+      `;
+    }
+  });
+  
+  // Mostra partite non assegnate a giornate
+  const unassignedMatches = matchesData.filter(m => !m.matchdayId);
+  if (unassignedMatches.length > 0) {
+    calendarHTML += `
+      <div class="matchday-card" style="margin-bottom: 25px">
+        <div class="matchday-header">
+          <div>
+            <div class="matchday-title">🗂️ Partite Varie</div>
+            <div class="matchday-meta">
+              <span>${unassignedMatches.length} partite</span>
+            </div>
+          </div>
+        </div>
+        
+        <div class="matchday-matches">
+          ${unassignedMatches.map(match => {
+            const homeTeam = teamsData.find(t => t.name === match.home);
+            const awayTeam = teamsData.find(t => t.name === match.away);
+            const isUserInMatch = currentUser && (
+              homeTeam?.players?.some(p => p.name.toLowerCase() === currentUser.toLowerCase()) ||
+              awayTeam?.players?.some(p => p.name.toLowerCase() === currentUser.toLowerCase())
+            );
+            
+            return `
+              <div class="match-card" style="${isUserInMatch ? 'border: 2px solid var(--yellow);' : ''}">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px">
+                  <div style="font-weight: 700; color: ${homeTeam?.color || '#fff'}">${match.home}</div>
+                  <div style="font-size: 24px; font-weight: 900">
+                    <span style="color: ${homeTeam?.color || '#fff'}">${match.scoreHome}</span>
+                    <span style="color: var(--muted); margin: 0 10px">-</span>
+                    <span style="color: ${awayTeam?.color || '#fff'}">${match.scoreAway}</span>
+                  </div>
+                  <div style="font-weight: 700; color: ${awayTeam?.color || '#fff'}">${match.away}</div>
+                </div>
+                <div style="font-size: 12px; color: var(--muted); text-align: center; margin-bottom: 10px">
+                  ${new Date(match.date).toLocaleDateString('it-IT')} ${match.time}
+                  ${isUserInMatch ? ' • 👤 TUA SQUADRA' : ''}
+                </div>
+                <button onclick="openTabellino(${match.id})" style="width: 100%">📋 DETTAGLI</button>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      </div>
+    `;
+  }
+  
+  userMatchesList.innerHTML = calendarHTML || `
+    <div class="empty-state">
+      <div class="empty-icon">📅</div>
+      <div class="empty-text">Nessuna partita in programma</div>
+    </div>
+  `;
+}
+
+// ================ DRAG & DROP FUNCTIONS ================
+function dragMatchStart(event, matchId, matchdayId) {
+  event.dataTransfer.setData('text/plain', JSON.stringify({ matchId, matchdayId }));
+  draggingMatchId = matchId;
+  draggingMatchdayId = matchdayId;
+  event.currentTarget.classList.add('dragging');
+}
+
+function dragMatchEnd(event) {
+  event.currentTarget.classList.remove('dragging');
+  draggingMatchId = null;
+  draggingMatchdayId = null;
+  
+  // Rimuovi highlight da tutte le drop zones
+  document.querySelectorAll('.drop-zone').forEach(zone => {
+    zone.classList.remove('active');
+  });
+}
+
+function dragOver(event) {
+  event.preventDefault();
+  event.currentTarget.classList.add('active');
+}
+
+function dragLeave(event) {
+  event.currentTarget.classList.remove('active');
+}
+
+function dropMatch(event, targetMatchdayId) {
+  event.preventDefault();
+  event.currentTarget.classList.remove('active');
+  
+  try {
+    const data = JSON.parse(event.dataTransfer.getData('text/plain'));
+    const { matchId, matchdayId } = data;
+    
+    if (matchId && targetMatchdayId !== matchdayId) {
+      assignMatchToMatchday(matchId, targetMatchdayId);
+    }
+  } catch (error) {
+    console.error('Errore drop:', error);
+  }
+}
+
+function showAssignModal(matchId) {
+  if (!isAdmin) {
+    showAdminModal(() => showAssignModal(matchId));
+    return;
+  }
+  
+  const match = matchesData.find(m => m.id === matchId);
+  if (!match) return;
+  
+  let optionsHTML = '<option value="">Scegli una giornata</option>';
+  matchdaysData.forEach(matchday => {
+    optionsHTML += `<option value="${matchday.id}">${matchday.name}</option>`;
+  });
+  
+  showConfirmModal(
+    'Assegna Partita',
+    `Assegna "${match.home} vs ${match.away}" a:<br>
+    <select id="assignMatchdaySelect" style="width: 100%; margin-top: 10px">
+      ${optionsHTML}
+    </select>`,
+    () => {
+      const select = document.getElementById('assignMatchdaySelect');
+      const selectedMatchdayId = parseInt(select.value);
+      
+      if (selectedMatchdayId) {
+        assignMatchToMatchday(matchId, selectedMatchdayId);
+      }
+    },
+    true
+  );
 }
 
 // ================ TABELLINO ================
@@ -2205,7 +3105,6 @@ function openTabellino(matchId) {
     loadPlayersForMatch(match);
   }
   renderEvents(match.id);
-  tabellino.scrollIntoView({ behavior: 'smooth' });
 }
 
 function closeTabellino() {
@@ -2226,7 +3125,7 @@ function updateMatchScore(matchId) {
   match.scoreAway = Math.max(0, scoreAway);
   
   saveData();
-  renderMatches();
+  renderCalendario();
   renderClassifica();
   showToast('Risultato aggiornato!', 'success');
 }
@@ -2268,7 +3167,7 @@ function toggleMatchCompletion(matchId) {
   }
   
   saveData();
-  renderMatches();
+  renderCalendario();
   renderClassifica();
   renderStats();
   renderMyScore();
@@ -2394,7 +3293,7 @@ function addEvent(matchId) {
   
   renderEvents(matchId);
   saveData();
-  renderMatches();
+  renderCalendario();
   renderClassifica();
   renderStats();
   
@@ -2494,7 +3393,7 @@ function removeEvent(matchId, eventId) {
   
   saveData();
   renderEvents(matchId);
-  renderMatches();
+  renderCalendario();
   renderClassifica();
   renderStats();
   
@@ -2765,11 +3664,6 @@ function updateBackupInfo() {
   document.getElementById('backupMatchesCount').textContent = matchesData.length;
   document.getElementById('backupPlayersCount').textContent = totalPlayers;
   document.getElementById('backupEventsCount').textContent = totalEvents;
-  
-  document.getElementById('userBackupTeamsCount').textContent = teamsData.length;
-  document.getElementById('userBackupMatchesCount').textContent = matchesData.length;
-  document.getElementById('userBackupPlayersCount').textContent = totalPlayers;
-  document.getElementById('userBackupEventsCount').textContent = totalEvents;
 }
 
 function exportData() {
@@ -2781,10 +3675,11 @@ function exportData() {
   const data = {
     teams: teamsData,
     matches: matchesData,
+    matchdays: matchdaysData,
     lastUpdate: Date.now(),
     exportedBy: currentUser,
     exportedAt: new Date().toISOString(),
-    version: '3.0-firebase'
+    version: '4.0-matchdays'
   };
   
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
@@ -2797,7 +3692,7 @@ function exportData() {
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
   
-  showToast(`Backup esportato! Squadre: ${teamsData.length}, Partite: ${matchesData.length}`, 'success');
+  showToast(`Backup esportato! Squadre: ${teamsData.length}, Partite: ${matchesData.length}, Giornate: ${matchdaysData.length}`, 'success');
 }
 
 function importData() {
@@ -2824,8 +3719,9 @@ function importData() {
       }
       
       if (confirm(`Importare backup con ${data.teams.length} squadre e ${data.matches.length} partite?\n\nATTENZIONE: Sovrascriverà tutti i dati attuali!`)) {
-        teamsData = data.teams;
-        matchesData = data.matches;
+        teamsData = data.teams || [];
+        matchesData = data.matches || [];
+        matchdaysData = data.matchdays || [];
         saveData();
         renderAll();
         showToast('Backup importato con successo!', 'success');
@@ -2849,9 +3745,11 @@ function resetData() {
     if (confirmation === 'RESET') {
       localStorage.removeItem('teamsData');
       localStorage.removeItem('matchesData');
+      localStorage.removeItem('matchdaysData');
       localStorage.removeItem('campionatoData');
       teamsData = [];
       matchesData = [];
+      matchdaysData = [];
       
       if (isFirebaseConnected && databaseRef) {
         databaseRef.remove().catch(err => console.error('Errore Firebase reset:', err));
@@ -2974,6 +3872,7 @@ function verifyAdmin() {
     localStorage.setItem('currentUserIcon', currentUserIcon);
     
     updateUserBadge();
+    updateNavigation();
     toggleAdminFunctions();
     closeAdminModal();
     
@@ -2989,24 +3888,51 @@ function verifyAdmin() {
   }
 }
 
+function showConfirmModal(title, message, actionCallback, includeSelect = false) {
+  document.getElementById('confirmTitle').textContent = title;
+  document.getElementById('confirmMessage').innerHTML = message;
+  document.getElementById('confirmActionBtn').onclick = () => {
+    actionCallback();
+    closeConfirmModal();
+  };
+  document.getElementById('confirmModal').style.display = 'flex';
+}
+
+function closeConfirmModal() {
+  document.getElementById('confirmModal').style.display = 'none';
+}
+
 function toggleAdminFunctions() {
   const isUserAdmin = isAdmin || (currentUser && ADMIN_USERS.includes(currentUser));
   
+  // Mostra/nascondi creazione squadre
   const createTeamCard = document.getElementById('createTeamCard');
   if (createTeamCard) {
     createTeamCard.style.display = isUserAdmin ? 'block' : 'none';
   }
   
+  // Mostra/nascondi creazione partite
   const createMatchCard = document.getElementById('createMatchCard');
   if (createMatchCard) {
     createMatchCard.style.display = isUserAdmin ? 'block' : 'none';
   }
   
-  const backupCard = document.getElementById('backupCard');
-  const backupUserView = document.getElementById('backupUserView');
-  if (backupCard && backupUserView) {
-    backupCard.style.display = isUserAdmin ? 'block' : 'none';
-    backupUserView.style.display = isUserAdmin ? 'none' : 'block';
+  // Mostra/nascondi sezione backup COMPLETAMENTE
+  const backupSection = document.getElementById('backup');
+  if (backupSection) {
+    backupSection.style.display = isUserAdmin ? 'block' : 'none';
+  }
+  
+  // Nascondi tabellone amministrazione matchdays se non admin
+  const matchdayAdminCard = document.getElementById('matchdayAdminCard');
+  if (matchdayAdminCard) {
+    matchdayAdminCard.style.display = isUserAdmin ? 'block' : 'none';
+  }
+  
+  // Per i giocatori, mostra solo la vista utente del calendario
+  if (!isUserAdmin && document.getElementById('calUserView')) {
+    document.getElementById('calAdminView').style.display = 'none';
+    document.getElementById('calUserView').style.display = 'block';
   }
 }
 
@@ -3018,10 +3944,12 @@ function saveData() {
 function saveLocalData() {
   localStorage.setItem('teamsData', JSON.stringify(teamsData));
   localStorage.setItem('matchesData', JSON.stringify(matchesData));
+  localStorage.setItem('matchdaysData', JSON.stringify(matchdaysData));
   
   const data = {
     teams: teamsData,
     matches: matchesData,
+    matchdays: matchdaysData,
     lastUpdate: Date.now(),
     lastUser: currentUser,
     lastUserRole: currentUserRole
@@ -3037,27 +3965,32 @@ function loadLocalData() {
       const fullData = JSON.parse(savedFull);
       teamsData = fullData.teams || [];
       matchesData = fullData.matches || [];
+      matchdaysData = fullData.matchdays || [];
       lastUpdateTime = fullData.lastUpdate || 0;
       return;
     }
     
     const savedTeams = localStorage.getItem('teamsData');
     const savedMatches = localStorage.getItem('matchesData');
+    const savedMatchdays = localStorage.getItem('matchdaysData');
     
     if (savedTeams && savedMatches) {
       teamsData = JSON.parse(savedTeams) || [];
       matchesData = JSON.parse(savedMatches) || [];
+      matchdaysData = JSON.parse(savedMatchdays) || [];
       return;
     }
     
     teamsData = [];
     matchesData = [];
+    matchdaysData = [];
     
   } catch (e) {
     console.error('Errore caricamento dati locali:', e);
     showToast('Errore nel caricamento dati locali', 'error');
     teamsData = [];
     matchesData = [];
+    matchdaysData = [];
   }
 }
 
@@ -3096,7 +4029,7 @@ function initPalette() {
 
 function renderAll() {
   renderTeams();
-  renderMatches();
+  renderCalendario();
   renderClassifica();
   renderStats();
   renderMyScore();
@@ -3130,6 +4063,26 @@ window.recalculateStats = recalculateStats;
 window.addEvent = addEvent;
 window.removeEvent = removeEvent;
 
+// Nuove funzioni per le giornate
+window.createNewMatchday = createNewMatchday;
+window.toggleEditMode = toggleEditMode;
+window.toggleMatchdayMode = toggleMatchdayMode;
+window.editMatchday = editMatchday;
+window.closeEditMatchdayModal = closeEditMatchdayModal;
+window.saveMatchdayEdit = saveMatchdayEdit;
+window.toggleMatchdayCompletion = toggleMatchdayCompletion;
+window.deleteMatchday = deleteMatchday;
+window.assignMatchToMatchday = assignMatchToMatchday;
+window.removeMatchFromMatchday = removeMatchFromMatchday;
+window.dragMatchStart = dragMatchStart;
+window.dragMatchEnd = dragMatchEnd;
+window.dragOver = dragOver;
+window.dragLeave = dragLeave;
+window.dropMatch = dropMatch;
+window.showAssignModal = showAssignModal;
+window.showConfirmModal = showConfirmModal;
+window.closeConfirmModal = closeConfirmModal;
+
 // ================ INIZIALIZZAZIONE ================
 document.addEventListener('DOMContentLoaded', async function() {
   const today = new Date().toISOString().split('T')[0];
@@ -3155,6 +4108,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     document.getElementById('app').style.display = 'block';
     
     updateUserBadge();
+    updateNavigation();
     toggleAdminFunctions();
     
     renderAll();
