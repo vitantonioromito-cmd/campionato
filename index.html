@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>🏆 Campionato Arena</title>
 <style>
-/* TUTTO IL CSS RIMANE IDENTICO */
+/* CSS COMPLETO */
 :root {
   --bg: #0a192f;
   --card: #112240;
@@ -1366,18 +1366,18 @@ let syncInterval = null;
 let pendingAdminAction = null;
 let isFirebaseConnected = false;
 let passwordFieldShown = false;
-
-// Firebase
-let firebaseApp, firebaseDatabase;
-let databaseRef;
+let firebaseApp, firebaseDatabase, databaseRef;
 let firebaseInitialized = false;
+
+// ================ LISTA UTENTI ADMIN ================
+const ADMIN_USERS = ['Vitantonio', 'Fabrizio', 'Jacopo'];
 
 // ================ FIREBASE INIZIALIZATION ================
 async function initializeFirebase() {
   try {
-    // Controlla se Firebase è già stato caricato
+    // Se Firebase è già caricato, usa quello
     if (typeof firebase === 'undefined') {
-      // Carica Firebase SDK (versione compatibilità per semplicità)
+      // Carica Firebase SDK
       await loadScript('https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js');
       await loadScript('https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js');
     }
@@ -1392,8 +1392,12 @@ async function initializeFirebase() {
       appId: "1:844668143316:web:c72cb60c6e3513582f5d41"
     };
     
-    // Inizializza Firebase (versione compat)
-    firebaseApp = firebase.initializeApp(firebaseConfig);
+    if (firebase.apps.length === 0) {
+      firebaseApp = firebase.initializeApp(firebaseConfig);
+    } else {
+      firebaseApp = firebase.app();
+    }
+    
     firebaseDatabase = firebase.database(firebaseApp);
     databaseRef = firebaseDatabase.ref('campionatoData');
     
@@ -1419,7 +1423,7 @@ function loadScript(src) {
   });
 }
 
-// ================ SISTEMA DI SINCRONIZZAZIONE FIREBASE ================
+// ================ SINCRONIZZAZIONE FIREBASE ================
 function initFirebaseSync() {
   loadLocalData();
   
@@ -1430,6 +1434,7 @@ function initFirebaseSync() {
       if (remoteData) {
         const remoteTime = remoteData.lastUpdate || 0;
         
+        // Solo se i dati remoti sono più recenti
         if (remoteTime > lastUpdateTime) {
           teamsData = remoteData.teams || [];
           matchesData = remoteData.matches || [];
@@ -1437,7 +1442,6 @@ function initFirebaseSync() {
           
           renderAll();
           updateSyncStatus(`🔄 Sync da Firebase`, true);
-          
           saveLocalData();
         }
       }
@@ -1447,8 +1451,8 @@ function initFirebaseSync() {
       isFirebaseConnected = false;
     });
     
-    // Sincronizza periodicamente
-    syncInterval = setInterval(syncData, 30000);
+    // Sincronizza ogni 10 secondi
+    syncInterval = setInterval(syncData, 10000);
   } else {
     showToast('Modalità offline: i dati sono salvati solo localmente', 'warning');
   }
@@ -1464,6 +1468,7 @@ function saveDataToFirebase() {
     version: '3.0-firebase'
   };
   
+  // Salva sempre localmente prima
   saveLocalData();
   
   if (isFirebaseConnected) {
@@ -1475,6 +1480,7 @@ function saveDataToFirebase() {
       .catch((error) => {
         console.error('Errore salvataggio Firebase:', error);
         updateSyncStatus('❌ Errore salvataggio Firebase', false);
+        isFirebaseConnected = false;
       });
   } else {
     updateSyncStatus('💾 Salvato solo localmente', true);
@@ -1485,14 +1491,12 @@ function saveDataToFirebase() {
 
 function syncData() {
   if (isFirebaseConnected) {
-    // Verifica se ci sono aggiornamenti remoti
     databaseRef.once('value')
       .then((snapshot) => {
         const remoteData = snapshot.val();
         if (remoteData) {
           const remoteTime = remoteData.lastUpdate || 0;
           if (remoteTime > lastUpdateTime) {
-            // Aggiorna con dati remoti
             teamsData = remoteData.teams || [];
             matchesData = remoteData.matches || [];
             lastUpdateTime = remoteTime;
@@ -1508,8 +1512,8 @@ function syncData() {
   }
 }
 
-// ================ FUNZIONI GLOBALI PER L'HTML ================
-async function checkLogin() {
+// ================ LOGIN ================
+function checkLogin() {
   const usernameInput = document.getElementById('loginUsername');
   const passwordInput = document.getElementById('loginPassword');
   const username = usernameInput.value.trim();
@@ -1521,7 +1525,6 @@ async function checkLogin() {
     return;
   }
   
-  // Controlla se è un admin
   const isAdminUser = ADMIN_USERS.includes(username);
   
   if (isAdminUser) {
@@ -1539,7 +1542,6 @@ async function checkLogin() {
       return;
     }
     
-    // Password admin (semplificata per demo)
     const adminPasswords = {
       'Vitantonio': 'giulia85',
       'Fabrizio': 'manetta26',
@@ -1595,15 +1597,16 @@ async function checkLogin() {
   document.getElementById('app').style.display = 'block';
   
   updateUserBadge();
-  
-  // Mostra/nascondi funzioni admin
   toggleAdminFunctions();
   
-  // Inizializza Firebase e sync se non è già stato fatto
+  // Inizializza Firebase se non è già stato fatto
   if (!firebaseInitialized) {
-    await initializeFirebase();
+    initializeFirebase().then(() => {
+      initFirebaseSync();
+    });
+  } else {
+    initFirebaseSync();
   }
-  initFirebaseSync();
   
   const welcomeMsg = isAdmin ? 
     `Admin ${currentUser} pronto per la gestione!` : 
@@ -1616,10 +1619,7 @@ async function checkLogin() {
   passwordFieldShown = false;
 }
 
-// ================ LISTA UTENTI ADMIN ================
-const ADMIN_USERS = ['Vitantonio', 'Fabrizio', 'Jacopo'];
-
-// ================ FUNZIONI RIMANENTI (UGUALI AL CODICE ORIGINALE) ================
+// ================ FUNZIONI NAVIGAZIONE ================
 function openTab(id, btn) {
   document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
   document.getElementById(id).classList.add('active');
@@ -1642,6 +1642,7 @@ function logout() {
   }
 }
 
+// ================ GESTIONE SQUADRE ================
 function addTeam() {
   if (!isAdmin) {
     showAdminModal(addTeam);
@@ -1675,358 +1676,6 @@ function addTeam() {
   document.getElementById('teamName').value = '';
 }
 
-function addMatch() {
-  if (!isAdmin) {
-    showAdminModal(addMatch);
-    return;
-  }
-  
-  const date = document.getElementById('matchDate').value;
-  const time = document.getElementById('matchTime').value;
-  const home = document.getElementById('homeTeam').value;
-  const away = document.getElementById('awayTeam').value;
-  
-  if (!date || !time || !home || !away) {
-    showToast('Compila tutti i campi', 'warning');
-    return;
-  }
-  
-  if (home === away) {
-    showToast('Scegli squadre diverse', 'error');
-    return;
-  }
-  
-  const newMatch = {
-    id: Date.now(),
-    date,
-    time,
-    home,
-    away,
-    scoreHome: 0,
-    scoreAway: 0,
-    events: [],
-    completed: false,
-    createdBy: currentUser,
-    createdAt: new Date().toLocaleString()
-  };
-  
-  matchesData.push(newMatch);
-  renderMatches();
-  saveData();
-  showToast(`Partita creata!`, 'success');
-  
-  document.getElementById('matchDate').value = '';
-  document.getElementById('matchTime').value = '';
-  document.getElementById('homeTeam').selectedIndex = 0;
-  document.getElementById('awayTeam').selectedIndex = 0;
-}
-
-function closeAdminModal() {
-  document.getElementById('adminModal').style.display = 'none';
-  document.getElementById('adminPasswordInput').value = '';
-  pendingAdminAction = null;
-}
-
-function verifyAdmin() {
-  const password = document.getElementById('adminPasswordInput').value;
-  
-  // Password admin (semplificate per demo)
-  const adminPasswords = {
-    'Vitantonio': 'giulia85',
-    'Fabrizio': 'manetta26',
-    'Jacopo': 'forzaroma1'
-  };
-  
-  if (adminPasswords[currentUser] && adminPasswords[currentUser] === password) {
-    isAdmin = true;
-    currentUserRole = "Admin";
-    currentUserIcon = "👑";
-    
-    localStorage.setItem('isAdmin', 'true');
-    localStorage.setItem('currentUserRole', currentUserRole);
-    localStorage.setItem('currentUserIcon', currentUserIcon);
-    
-    updateUserBadge();
-    toggleAdminFunctions();
-    closeAdminModal();
-    
-    if (pendingAdminAction) {
-      pendingAdminAction();
-    }
-    
-    showToast(`✅ Accesso admin attivato per ${currentUser}!`, 'success');
-  } else {
-    showToast('Password admin errata!', 'error');
-    document.getElementById('adminPasswordInput').value = '';
-    document.getElementById('adminPasswordInput').focus();
-  }
-}
-
-function exportData() {
-  if (!isAdmin) {
-    showAdminModal(exportData);
-    return;
-  }
-  
-  const data = {
-    teams: teamsData,
-    matches: matchesData,
-    lastUpdate: Date.now(),
-    exportedBy: currentUser,
-    exportedAt: new Date().toISOString(),
-    version: '3.0-firebase'
-  };
-  
-  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `campionato-backup-${new Date().toISOString().split('T')[0]}.json`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-  
-  showToast(`Backup esportato! Squadre: ${teamsData.length}, Partite: ${matchesData.length}`, 'success');
-}
-
-function importData() {
-  if (!isAdmin) {
-    showAdminModal(importData);
-    return;
-  }
-  
-  const input = document.createElement('input');
-  input.type = 'file';
-  input.accept = '.json';
-  
-  input.onchange = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    
-    try {
-      const text = await file.text();
-      const data = JSON.parse(text);
-      
-      if (!data.teams || !data.matches) {
-        showToast('File di backup non valido', 'error');
-        return;
-      }
-      
-      if (confirm(`Importare backup con ${data.teams.length} squadre e ${data.matches.length} partite?\n\nATTENZIONE: Sovrascriverà tutti i dati attuali!`)) {
-        teamsData = data.teams;
-        matchesData = data.matches;
-        saveData();
-        renderAll();
-        showToast('Backup importato con successo!', 'success');
-      }
-    } catch (err) {
-      showToast('Errore nell\'importazione: ' + err.message, 'error');
-    }
-  };
-  
-  input.click();
-}
-
-function resetData() {
-  if (!isAdmin) {
-    showAdminModal(resetData);
-    return;
-  }
-  
-  if (confirm('ATTENZIONE: Vuoi resettare TUTTI i dati?\n\nQuesta azione è irreversibile!\n\nDigita "RESET" per confermare:')) {
-    const confirmation = prompt('Digita RESET per confermare:');
-    if (confirmation === 'RESET') {
-      localStorage.removeItem('teamsData');
-      localStorage.removeItem('matchesData');
-      localStorage.removeItem('campionatoData');
-      teamsData = [];
-      matchesData = [];
-      
-      if (isFirebaseConnected && databaseRef) {
-        databaseRef.remove().catch(err => console.error('Errore Firebase reset:', err));
-      }
-      
-      renderAll();
-      showToast('Dati resettati completamente!', 'success');
-    } else {
-      showToast('Reset annullato', 'info');
-    }
-  }
-}
-
-// ================ FUNZIONI INTERNE ================
-function getRoleIcon(role) {
-  if (!role) return '👤';
-  if (role.includes('Capitano')) return '⭐';
-  if (role.includes('Portiere')) return '🧤';
-  if (role.includes('Giocatore')) return '⚽';
-  return '👤';
-}
-
-function updateUserBadge() {
-  const userBadge = document.getElementById('userBadge');
-  if (userBadge) {
-    userBadge.innerHTML = `
-      <span>${currentUserIcon}</span>
-      <span>${currentUser}</span>
-      <span class="user-role">${currentUserRole}</span>
-    `;
-  }
-}
-
-function performLogout() {
-  currentUser = null;
-  currentUserRole = "Giocatore";
-  currentUserIcon = "👤";
-  isAdmin = false;
-  passwordFieldShown = false;
-  
-  localStorage.removeItem('currentUser');
-  localStorage.removeItem('isAdmin');
-  localStorage.removeItem('currentUserRole');
-  localStorage.removeItem('currentUserIcon');
-  
-  if (syncInterval) {
-    clearInterval(syncInterval);
-    syncInterval = null;
-  }
-  
-  document.getElementById('loginScreen').style.display = 'flex';
-  document.getElementById('app').style.display = 'none';
-  
-  const usernameInput = document.getElementById('loginUsername');
-  const passwordInput = document.getElementById('loginPassword');
-  usernameInput.value = '';
-  passwordInput.value = '';
-  passwordInput.style.display = 'none';
-  
-  usernameInput.focus();
-  
-  showToast('Logout effettuato! Arrivederci 👋', 'info');
-}
-
-function showToast(message, type = 'info') {
-  const container = document.getElementById('toastContainer');
-  const toast = document.createElement('div');
-  toast.className = `toast toast-${type}`;
-  
-  const icons = {
-    info: 'ℹ️',
-    success: '✅',
-    warning: '⚠️',
-    error: '❌'
-  };
-  
-  toast.innerHTML = `
-    <div class="toast-icon">${icons[type] || icons.info}</div>
-    <div class="toast-message">${message}</div>
-    <button class="toast-close" onclick="this.parentElement.remove()">✕</button>
-  `;
-  
-  container.appendChild(toast);
-  
-  setTimeout(() => {
-    if (toast.parentElement) {
-      toast.remove();
-    }
-  }, 5000);
-}
-
-function showAdminModal(actionCallback) {
-  pendingAdminAction = actionCallback;
-  document.getElementById('adminModal').style.display = 'flex';
-  document.getElementById('adminPasswordInput').focus();
-}
-
-function toggleAdminFunctions() {
-  const isUserAdmin = isAdmin || (currentUser && ADMIN_USERS.includes(currentUser));
-  
-  const createTeamCard = document.getElementById('createTeamCard');
-  if (createTeamCard) {
-    createTeamCard.style.display = isUserAdmin ? 'block' : 'none';
-  }
-  
-  const createMatchCard = document.getElementById('createMatchCard');
-  if (createMatchCard) {
-    createMatchCard.style.display = isUserAdmin ? 'block' : 'none';
-  }
-  
-  const backupCard = document.getElementById('backupCard');
-  const backupUserView = document.getElementById('backupUserView');
-  if (backupCard && backupUserView) {
-    backupCard.style.display = isUserAdmin ? 'block' : 'none';
-    backupUserView.style.display = isUserAdmin ? 'none' : 'block';
-  }
-}
-
-// ================ GESTIONE DATI ================
-function saveData() {
-  saveDataToFirebase();
-}
-
-function saveLocalData() {
-  localStorage.setItem('teamsData', JSON.stringify(teamsData));
-  localStorage.setItem('matchesData', JSON.stringify(matchesData));
-  
-  const data = {
-    teams: teamsData,
-    matches: matchesData,
-    lastUpdate: Date.now(),
-    lastUser: currentUser,
-    lastUserRole: currentUserRole
-  };
-  localStorage.setItem('campionatoData', JSON.stringify(data));
-  lastUpdateTime = data.lastUpdate;
-}
-
-function loadLocalData() {
-  try {
-    const savedFull = localStorage.getItem('campionatoData');
-    if (savedFull) {
-      const fullData = JSON.parse(savedFull);
-      teamsData = fullData.teams || [];
-      matchesData = fullData.matches || [];
-      lastUpdateTime = fullData.lastUpdate || 0;
-      return;
-    }
-    
-    const savedTeams = localStorage.getItem('teamsData');
-    const savedMatches = localStorage.getItem('matchesData');
-    
-    if (savedTeams && savedMatches) {
-      teamsData = JSON.parse(savedTeams) || [];
-      matchesData = JSON.parse(savedMatches) || [];
-      return;
-    }
-    
-    teamsData = [];
-    matchesData = [];
-    
-  } catch (e) {
-    console.error('Errore caricamento dati locali:', e);
-    showToast('Errore nel caricamento dati locali', 'error');
-    teamsData = [];
-    matchesData = [];
-  }
-}
-
-function updateSyncStatus(text, success = true) {
-  const syncEl = document.getElementById('syncStatus');
-  const syncText = document.getElementById('syncText');
-  const syncIcon = document.getElementById('syncIcon');
-  
-  syncText.textContent = text;
-  syncEl.className = success ? 'sync-status' : 'sync-status error';
-  syncEl.style.display = 'flex';
-  
-  clearTimeout(syncEl.hideTimeout);
-  syncEl.hideTimeout = setTimeout(() => {
-    syncEl.style.display = 'none';
-  }, 3000);
-}
-
-// ================ GESTIONE SQUADRE ================
 function initPalette() {
   const palette = document.getElementById('palette');
   palette.innerHTML = '';
@@ -2100,6 +1749,13 @@ function editTeam(teamId) {
       showToast('Nome già utilizzato', 'error');
       return;
     }
+    
+    // Aggiorna nome in tutte le partite esistenti
+    matchesData.forEach(match => {
+      if (match.home === team.name) match.home = newName;
+      if (match.away === team.name) match.away = newName;
+    });
+    
     team.name = newName.trim();
     saveData();
     renderAll();
@@ -2115,7 +1771,15 @@ function deleteTeam(teamId) {
   
   if (!confirm('Eliminare questa squadra e tutti i suoi giocatori?\nQuesta azione è irreversibile!')) return;
   
+  const teamName = teamsData.find(t => t.id === teamId)?.name;
+  
+  // Rimuovi squadra
   teamsData = teamsData.filter(t => t.id !== teamId);
+  
+  // Rimuovi partite associate
+  matchesData = matchesData.filter(m => m.home !== teamName && m.away !== teamName);
+  
+  // Salva immediatamente
   saveData();
   renderAll();
   showToast('Squadra eliminata!', 'success');
@@ -2202,6 +1866,68 @@ function renderTeams() {
 }
 
 // ================ GESTIONE PARTITE ================
+function addMatch() {
+  if (!isAdmin) {
+    showAdminModal(addMatch);
+    return;
+  }
+  
+  const date = document.getElementById('matchDate').value;
+  const time = document.getElementById('matchTime').value;
+  const home = document.getElementById('homeTeam').value;
+  const away = document.getElementById('awayTeam').value;
+  
+  if (!date || !time || !home || !away) {
+    showToast('Compila tutti i campi', 'warning');
+    return;
+  }
+  
+  if (home === away) {
+    showToast('Scegli squadre diverse', 'error');
+    return;
+  }
+  
+  const newMatch = {
+    id: Date.now(),
+    date,
+    time,
+    home,
+    away,
+    scoreHome: 0,
+    scoreAway: 0,
+    events: [],
+    completed: false,
+    createdBy: currentUser,
+    createdAt: new Date().toLocaleString()
+  };
+  
+  matchesData.push(newMatch);
+  renderMatches();
+  saveData();
+  showToast(`Partita creata!`, 'success');
+  
+  document.getElementById('matchDate').value = '';
+  document.getElementById('matchTime').value = '';
+  document.getElementById('homeTeam').selectedIndex = 0;
+  document.getElementById('awayTeam').selectedIndex = 0;
+}
+
+function deleteMatch(matchId) {
+  if (!isAdmin) {
+    showAdminModal(() => deleteMatch(matchId));
+    return;
+  }
+  
+  if (!confirm('Eliminare questa partita?\nTutti gli eventi saranno rimossi.')) return;
+  
+  matchesData = matchesData.filter(m => m.id !== matchId);
+  saveData();
+  renderMatches();
+  renderClassifica();
+  renderStats();
+  showToast('Partita eliminata!', 'success');
+}
+
 function renderMatches() {
   const matchesDiv = document.getElementById('matches');
   matchesDiv.innerHTML = '';
@@ -2225,11 +1951,8 @@ function renderMatches() {
     const matchCard = document.createElement('div');
     matchCard.className = 'match-card';
     
-    let golHome = match.scoreHome || 0;
-    let golAway = match.scoreAway || 0;
-    
-    golHome = Math.max(0, golHome);
-    golAway = Math.max(0, golAway);
+    const golHome = Math.max(0, match.scoreHome || 0);
+    const golAway = Math.max(0, match.scoreAway || 0);
     
     const adminActions = isAdmin ? `
       <div class="match-actions">
@@ -2281,22 +2004,6 @@ function renderMatches() {
     
     matchesDiv.appendChild(matchCard);
   });
-}
-
-function deleteMatch(matchId) {
-  if (!isAdmin) {
-    showAdminModal(() => deleteMatch(matchId));
-    return;
-  }
-  
-  if (!confirm('Eliminare questa partita?\nTutti gli eventi saranno rimossi.')) return;
-  
-  matchesData = matchesData.filter(m => m.id !== matchId);
-  saveData();
-  renderMatches();
-  renderClassifica();
-  renderStats();
-  showToast('Partita eliminata!', 'success');
 }
 
 // ================ TABELLINO ================
@@ -2953,7 +2660,309 @@ function updateBackupInfo() {
   document.getElementById('userBackupEventsCount').textContent = totalEvents;
 }
 
-// ================ RENDER ALL ================
+function exportData() {
+  if (!isAdmin) {
+    showAdminModal(exportData);
+    return;
+  }
+  
+  const data = {
+    teams: teamsData,
+    matches: matchesData,
+    lastUpdate: Date.now(),
+    exportedBy: currentUser,
+    exportedAt: new Date().toISOString(),
+    version: '3.0-firebase'
+  };
+  
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `campionato-backup-${new Date().toISOString().split('T')[0]}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  
+  showToast(`Backup esportato! Squadre: ${teamsData.length}, Partite: ${matchesData.length}`, 'success');
+}
+
+function importData() {
+  if (!isAdmin) {
+    showAdminModal(importData);
+    return;
+  }
+  
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = '.json';
+  
+  input.onchange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    
+    try {
+      const text = await file.text();
+      const data = JSON.parse(text);
+      
+      if (!data.teams || !data.matches) {
+        showToast('File di backup non valido', 'error');
+        return;
+      }
+      
+      if (confirm(`Importare backup con ${data.teams.length} squadre e ${data.matches.length} partite?\n\nATTENZIONE: Sovrascriverà tutti i dati attuali!`)) {
+        teamsData = data.teams;
+        matchesData = data.matches;
+        saveData();
+        renderAll();
+        showToast('Backup importato con successo!', 'success');
+      }
+    } catch (err) {
+      showToast('Errore nell\'importazione: ' + err.message, 'error');
+    }
+  };
+  
+  input.click();
+}
+
+function resetData() {
+  if (!isAdmin) {
+    showAdminModal(resetData);
+    return;
+  }
+  
+  if (confirm('ATTENZIONE: Vuoi resettare TUTTI i dati?\n\nQuesta azione è irreversibile!\n\nDigita "RESET" per confermare:')) {
+    const confirmation = prompt('Digita RESET per confermare:');
+    if (confirmation === 'RESET') {
+      localStorage.removeItem('teamsData');
+      localStorage.removeItem('matchesData');
+      localStorage.removeItem('campionatoData');
+      teamsData = [];
+      matchesData = [];
+      
+      if (isFirebaseConnected && databaseRef) {
+        databaseRef.remove().catch(err => console.error('Errore Firebase reset:', err));
+      }
+      
+      renderAll();
+      showToast('Dati resettati completamente!', 'success');
+    } else {
+      showToast('Reset annullato', 'info');
+    }
+  }
+}
+
+// ================ FUNZIONI UTILITY ================
+function getRoleIcon(role) {
+  if (!role) return '👤';
+  if (role.includes('Capitano')) return '⭐';
+  if (role.includes('Portiere')) return '🧤';
+  if (role.includes('Giocatore')) return '⚽';
+  return '👤';
+}
+
+function updateUserBadge() {
+  const userBadge = document.getElementById('userBadge');
+  if (userBadge) {
+    userBadge.innerHTML = `
+      <span>${currentUserIcon}</span>
+      <span>${currentUser}</span>
+      <span class="user-role">${currentUserRole}</span>
+    `;
+  }
+}
+
+function performLogout() {
+  currentUser = null;
+  currentUserRole = "Giocatore";
+  currentUserIcon = "👤";
+  isAdmin = false;
+  passwordFieldShown = false;
+  
+  localStorage.removeItem('currentUser');
+  localStorage.removeItem('isAdmin');
+  localStorage.removeItem('currentUserRole');
+  localStorage.removeItem('currentUserIcon');
+  
+  if (syncInterval) {
+    clearInterval(syncInterval);
+    syncInterval = null;
+  }
+  
+  document.getElementById('loginScreen').style.display = 'flex';
+  document.getElementById('app').style.display = 'none';
+  
+  const usernameInput = document.getElementById('loginUsername');
+  const passwordInput = document.getElementById('loginPassword');
+  usernameInput.value = '';
+  passwordInput.value = '';
+  passwordInput.style.display = 'none';
+  
+  usernameInput.focus();
+  
+  showToast('Logout effettuato! Arrivederci 👋', 'info');
+}
+
+function showToast(message, type = 'info') {
+  const container = document.getElementById('toastContainer');
+  const toast = document.createElement('div');
+  toast.className = `toast toast-${type}`;
+  
+  const icons = {
+    info: 'ℹ️',
+    success: '✅',
+    warning: '⚠️',
+    error: '❌'
+  };
+  
+  toast.innerHTML = `
+    <div class="toast-icon">${icons[type] || icons.info}</div>
+    <div class="toast-message">${message}</div>
+    <button class="toast-close" onclick="this.parentElement.remove()">✕</button>
+  `;
+  
+  container.appendChild(toast);
+  
+  setTimeout(() => {
+    if (toast.parentElement) {
+      toast.remove();
+    }
+  }, 5000);
+}
+
+function showAdminModal(actionCallback) {
+  pendingAdminAction = actionCallback;
+  document.getElementById('adminModal').style.display = 'flex';
+  document.getElementById('adminPasswordInput').focus();
+}
+
+function closeAdminModal() {
+  document.getElementById('adminModal').style.display = 'none';
+  document.getElementById('adminPasswordInput').value = '';
+  pendingAdminAction = null;
+}
+
+function verifyAdmin() {
+  const password = document.getElementById('adminPasswordInput').value;
+  
+  const adminPasswords = {
+    'Vitantonio': 'giulia85',
+    'Fabrizio': 'manetta26',
+    'Jacopo': 'forzaroma1'
+  };
+  
+  if (adminPasswords[currentUser] && adminPasswords[currentUser] === password) {
+    isAdmin = true;
+    currentUserRole = "Admin";
+    currentUserIcon = "👑";
+    
+    localStorage.setItem('isAdmin', 'true');
+    localStorage.setItem('currentUserRole', currentUserRole);
+    localStorage.setItem('currentUserIcon', currentUserIcon);
+    
+    updateUserBadge();
+    toggleAdminFunctions();
+    closeAdminModal();
+    
+    if (pendingAdminAction) {
+      pendingAdminAction();
+    }
+    
+    showToast(`✅ Accesso admin attivato per ${currentUser}!`, 'success');
+  } else {
+    showToast('Password admin errata!', 'error');
+    document.getElementById('adminPasswordInput').value = '';
+    document.getElementById('adminPasswordInput').focus();
+  }
+}
+
+function toggleAdminFunctions() {
+  const isUserAdmin = isAdmin || (currentUser && ADMIN_USERS.includes(currentUser));
+  
+  const createTeamCard = document.getElementById('createTeamCard');
+  if (createTeamCard) {
+    createTeamCard.style.display = isUserAdmin ? 'block' : 'none';
+  }
+  
+  const createMatchCard = document.getElementById('createMatchCard');
+  if (createMatchCard) {
+    createMatchCard.style.display = isUserAdmin ? 'block' : 'none';
+  }
+  
+  const backupCard = document.getElementById('backupCard');
+  const backupUserView = document.getElementById('backupUserView');
+  if (backupCard && backupUserView) {
+    backupCard.style.display = isUserAdmin ? 'block' : 'none';
+    backupUserView.style.display = isUserAdmin ? 'none' : 'block';
+  }
+}
+
+function saveData() {
+  saveDataToFirebase();
+}
+
+function saveLocalData() {
+  localStorage.setItem('teamsData', JSON.stringify(teamsData));
+  localStorage.setItem('matchesData', JSON.stringify(matchesData));
+  
+  const data = {
+    teams: teamsData,
+    matches: matchesData,
+    lastUpdate: Date.now(),
+    lastUser: currentUser,
+    lastUserRole: currentUserRole
+  };
+  localStorage.setItem('campionatoData', JSON.stringify(data));
+  lastUpdateTime = data.lastUpdate;
+}
+
+function loadLocalData() {
+  try {
+    const savedFull = localStorage.getItem('campionatoData');
+    if (savedFull) {
+      const fullData = JSON.parse(savedFull);
+      teamsData = fullData.teams || [];
+      matchesData = fullData.matches || [];
+      lastUpdateTime = fullData.lastUpdate || 0;
+      return;
+    }
+    
+    const savedTeams = localStorage.getItem('teamsData');
+    const savedMatches = localStorage.getItem('matchesData');
+    
+    if (savedTeams && savedMatches) {
+      teamsData = JSON.parse(savedTeams) || [];
+      matchesData = JSON.parse(savedMatches) || [];
+      return;
+    }
+    
+    teamsData = [];
+    matchesData = [];
+    
+  } catch (e) {
+    console.error('Errore caricamento dati locali:', e);
+    showToast('Errore nel caricamento dati locali', 'error');
+    teamsData = [];
+    matchesData = [];
+  }
+}
+
+function updateSyncStatus(text, success = true) {
+  const syncEl = document.getElementById('syncStatus');
+  const syncText = document.getElementById('syncText');
+  const syncIcon = document.getElementById('syncIcon');
+  
+  syncText.textContent = text;
+  syncEl.className = success ? 'sync-status' : 'sync-status error';
+  syncEl.style.display = 'flex';
+  
+  clearTimeout(syncEl.hideTimeout);
+  syncEl.hideTimeout = setTimeout(() => {
+    syncEl.style.display = 'none';
+  }, 3000);
+}
+
 function renderAll() {
   renderTeams();
   renderMatches();
@@ -2995,7 +3004,6 @@ document.addEventListener('DOMContentLoaded', async function() {
   }
   
   initPalette();
-  
   loadLocalData();
   
   const savedUser = localStorage.getItem('currentUser');
@@ -3012,7 +3020,6 @@ document.addEventListener('DOMContentLoaded', async function() {
     
     updateUserBadge();
     toggleAdminFunctions();
-    
     renderAll();
     
     // Inizializza Firebase
