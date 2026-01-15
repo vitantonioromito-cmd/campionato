@@ -1423,9 +1423,11 @@ let pendingAdminAction = null;
 let isFirebaseConnected = false;
 let passwordFieldShown = false;
 
+// Variabili per la modifica giocatori
 let editingTeamId = null;
 let editingPlayerId = null;
 
+// Firebase
 let firebaseApp, firebaseDatabase;
 let databaseRef;
 let firebaseInitialized = false;
@@ -1454,9 +1456,10 @@ async function initializeFirebase() {
     
     isFirebaseConnected = true;
     firebaseInitialized = true;
+    console.log('✅ Firebase inizializzato con successo!');
     return true;
   } catch (error) {
-    console.error('Errore inizializzazione Firebase:', error);
+    console.error('❌ Errore inizializzazione Firebase:', error);
     isFirebaseConnected = false;
     showToast('⚠️ Modalità offline: i dati sono salvati solo localmente', 'warning');
     return false;
@@ -1490,6 +1493,7 @@ function initFirebaseSync() {
           
           renderAll();
           updateSyncStatus(`🔄 Sync da Firebase`, true);
+          
           saveLocalData();
         }
       }
@@ -1660,6 +1664,7 @@ async function checkLogin() {
   passwordFieldShown = false;
 }
 
+// ================ LISTA UTENTI ADMIN ================
 const ADMIN_USERS = ['Vitantonio', 'Fabrizio', 'Jacopo'];
 
 // ================ FUNZIONI NAVIGAZIONE ================
@@ -1805,6 +1810,7 @@ function savePlayerEdit() {
   const player = team.players.find(p => p.id === editingPlayerId);
   if (!player) return;
   
+  // Controlla se il nuovo nome è già usato in altre squadre
   if (newName.toLowerCase() !== player.name.toLowerCase()) {
     for (const t of teamsData) {
       if (t.id !== editingTeamId && t.players.find(p => p.name.toLowerCase() === newName.toLowerCase())) {
@@ -2646,7 +2652,7 @@ function renderMyScore() {
       myReds += player.rosso || 0;
       myPresenze += player.presenze || 0;
     });
-  }
+  });
   
   const statsDiv = document.getElementById('myScoreStats');
   statsDiv.innerHTML = `
