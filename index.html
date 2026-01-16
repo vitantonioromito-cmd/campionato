@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>🏆 Campionato Arena</title>
 <style>
-/* CSS COMPLETO - SENZA MODIFICHE */
+/* CSS COMPLETO */
 :root {
   --bg: #0a192f;
   --card: #112240;
@@ -161,6 +161,26 @@ header {
   height: 8px;
   background: #00d4aa;
   border-radius: 50%;
+}
+
+.refresh-btn {
+  background: rgba(0, 0, 0, 0.8);
+  color: white;
+  border: none;
+  border-radius: 20px;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.3s ease;
+}
+
+.refresh-btn:hover {
+  background: rgba(0, 212, 170, 0.8);
+  transform: scale(1.05);
 }
 
 @keyframes pulse {
@@ -1172,6 +1192,10 @@ button.danger:hover {
       <div class="header-left">
         <div id="liveIndicator">LIVE</div>
         <div class="header-title">Campionato Arena</div>
+        <button class="refresh-btn" onclick="forceRefresh()">
+          <span>🔄</span>
+          <span>Aggiorna</span>
+        </button>
       </div>
       <div class="user-badge" id="userBadge">
         <span id="userIcon">👤</span>
@@ -1573,7 +1597,7 @@ function initFirebaseSync() {
       if (remoteData && remoteData.teams && remoteData.matches) {
         const remoteTime = remoteData.lastUpdate || 0;
         
-        if (remoteTime > lastUpdateTime || teamsData.length === 0) {
+        if (remoteTime > lastUpdateTime) {
           console.log('🔄 Aggiornamento da Firebase in corso...');
           teamsData = remoteData.teams || [];
           matchesData = remoteData.matches || [];
@@ -1583,7 +1607,6 @@ function initFirebaseSync() {
           renderAll();
           
           updateSyncStatus(`🔄 Sync da Firebase (${new Date(remoteTime).toLocaleTimeString()})`, true);
-          showToast('Dati sincronizzati da Firebase!', 'success');
         }
       }
     }, (error) => {
@@ -1595,7 +1618,6 @@ function initFirebaseSync() {
     syncInterval = setInterval(syncData, 5000);
   } else {
     console.log('⚠️ Firebase non connesso, modalità offline');
-    showToast('Modalità offline: i dati sono salvati solo localmente', 'warning');
   }
 }
 
@@ -1606,7 +1628,7 @@ function saveDataToFirebase() {
     lastUpdate: Date.now(),
     lastUser: currentUser,
     lastUserRole: currentUserRole,
-    version: '4.0-firebase'
+    version: '5.0-firebase-fixed'
   };
   
   saveLocalData();
@@ -1652,6 +1674,46 @@ function syncData() {
       .catch((error) => {
         console.error('Errore sincronizzazione:', error);
       });
+  }
+}
+
+// ================ FUNZIONE FORCE REFRESH ================
+function forceRefresh() {
+  console.log('🔄 Forzando aggiornamento dati...');
+  
+  if (isFirebaseConnected && databaseRef) {
+    databaseRef.once('value')
+      .then((snapshot) => {
+        const remoteData = snapshot.val();
+        if (remoteData) {
+          const remoteTime = remoteData.lastUpdate || 0;
+          
+          if (remoteTime > lastUpdateTime || teamsData.length === 0) {
+            console.log('🔄 Aggiornamento forzato da Firebase');
+            teamsData = remoteData.teams || [];
+            matchesData = remoteData.matches || [];
+            lastUpdateTime = remoteTime;
+            
+            saveLocalData();
+            renderAll();
+            
+            updateSyncStatus(`🔄 Aggiornato (${new Date(remoteTime).toLocaleTimeString()})`, true);
+            showToast('Dati aggiornati da tutti i dispositivi!', 'success');
+          } else {
+            showToast('I dati sono già aggiornati!', 'info');
+          }
+        } else {
+          showToast('Nessun dato disponibile su Firebase', 'warning');
+        }
+      })
+      .catch((error) => {
+        console.error('Errore aggiornamento:', error);
+        showToast('Errore nella connessione a Firebase', 'error');
+      });
+  } else {
+    loadLocalData();
+    renderAll();
+    showToast('Dati ricaricati dal backup locale', 'info');
   }
 }
 
@@ -1776,6 +1838,8 @@ function openTab(id, btn) {
   toggleAdminFunctions();
   
   switch(id) {
+    case 'squadre': renderTeams(); break;
+    case 'cal': renderMatches(); break;
     case 'class': renderClassifica(); break;
     case 'stats': renderStats(); break;
     case 'myscore': renderMyScore(); break;
@@ -1826,6 +1890,8 @@ function addTeam() {
 
 function initPalette() {
   const palette = document.getElementById('palette');
+  if (!palette) return;
+  
   palette.innerHTML = '';
   
   COLORS.forEach(color => {
@@ -1842,14 +1908,123 @@ function initPalette() {
   });
 }
 
+function renderTeams() {
+  console.log('renderTeams chiamato, teamsData:', teamsData);
+  
+  const teamsDiv = document.getElementById('teams');
+  const homeSelect = document.getElementById('homeTeam');
+  const awaySelect = document.getElementById('awayTeam');
+  
+  // Pulisci tutto
+  teamsDiv.innerHTML = '';
+  
+  if (homeSelect) {
+    homeSelect.innerHTML = '<option value="">Scegli squadra casa</option>';
+  }
+  
+  if (awaySelect) {
+    awaySelect.innerHTML = '<option value="">Scegli squadra ospite</option>';
+  }
+  
+  // Verifica se ci sono squadre
+  if (!teamsData || teamsData.length === 0) {
+    teamsDiv.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-icon">👥</div>
+        <div class="empty-text">Nessuna squadra creata<br>Crea la prima squadra!</div>
+      </div>
+    `;
+    return;
+  }
+  
+  // Renderizza ogni squadra
+  teamsData.forEach(team => {
+    console.log('Rendering team:', team.name, 'players:', team.players);
+    
+    const teamCard = document.createElement('div');
+    teamCard.className = 'teamCard';
+    teamCard.style.borderLeftColor = team.color;
+    
+    // Costruisci HTML giocatori
+    let playersHTML = '';
+    if (team.players && team.players.length > 0) {
+      team.players.forEach(player => {
+        playersHTML += `
+          <div class="player" style="border-left-color: ${team.color}">
+            <div class="player-info">
+              <div class="player-name">${player.name} ${isAdmin ? `<button onclick="openEditPlayerModal('${player.name}', ${team.id})" style="background:none; border:none; color:var(--accent); cursor:pointer; font-size:12px">✏️</button>` : ''}</div>
+              <div class="player-role">${player.role}</div>
+            </div>
+            <div class="player-stats">
+              <div class="stat-bubble">⚽ ${player.gol || 0}</div>
+              <div class="stat-bubble">🅰️ ${player.assist || 0}</div>
+              <div class="stat-bubble" style="background: rgba(255, 216, 0, 0.1); color: #fdd835">🟨 ${player.giallo || 0}</div>
+              <div class="stat-bubble" style="background: rgba(230, 57, 70, 0.1); color: #e63946">🟥 ${player.rosso || 0}</div>
+            </div>
+          </div>
+        `;
+      });
+    } else {
+      playersHTML = '<div class="empty-text" style="padding: 20px; text-align: center; color: var(--muted)">Nessun giocatore</div>';
+    }
+    
+    // Pulsanti admin
+    const adminButtons = isAdmin ? `
+      <div style="margin: 20px 0">
+        <input placeholder="Nome giocatore" id="p_${team.id}">
+        <select id="r_${team.id}">
+          <option value="Giocatore">Giocatore</option>
+          <option value="Capitano">Capitano</option>
+          <option value="Portiere">Portiere</option>
+        </select>
+        <button onclick="addPlayer(${team.id})">➕ Aggiungi Giocatore</button>
+      </div>
+      <div class="match-actions">
+        <button class="secondary" onclick="editTeam(${team.id})">✏️ Modifica</button>
+        <button class="danger" onclick="deleteTeam(${team.id})">🗑️ Elimina</button>
+      </div>
+    ` : '';
+    
+    teamCard.innerHTML = `
+      <h3>
+        <span class="team-color" style="background: ${team.color}"></span>
+        ${team.name}
+      </h3>
+      ${adminButtons}
+      <div id="list_${team.id}">
+        ${playersHTML}
+      </div>
+      <div style="font-size: 11px; color: var(--muted); margin-top: 15px; text-align: right">
+        Creata da ${team.createdBy || 'Admin'}
+      </div>
+    `;
+    
+    teamsDiv.appendChild(teamCard);
+    
+    // Aggiungi ai select per le partite
+    if (homeSelect) {
+      homeSelect.innerHTML += `<option value="${team.name}">${team.name}</option>`;
+    }
+    if (awaySelect) {
+      awaySelect.innerHTML += `<option value="${team.name}">${team.name}</option>`;
+    }
+  });
+  
+  // Inizializza palette
+  initPalette();
+}
+
 function addPlayer(teamId) {
   if (!isAdmin) {
     showAdminModal(() => addPlayer(teamId));
     return;
   }
   
-  const name = document.getElementById(`p_${teamId}`).value.trim();
-  const role = document.getElementById(`r_${teamId}`).value;
+  const nameInput = document.getElementById(`p_${teamId}`);
+  const roleSelect = document.getElementById(`r_${teamId}`);
+  
+  const name = nameInput.value.trim();
+  const role = roleSelect.value;
   
   if (!name) {
     showToast('Inserisci il nome del giocatore', 'warning');
@@ -1858,6 +2033,7 @@ function addPlayer(teamId) {
   
   const team = teamsData.find(t => t.id === teamId);
   
+  // Verifica se il giocatore esiste già in qualsiasi squadra
   for (const t of teamsData) {
     if (t.players.find(p => p.name.toLowerCase() === name.toLowerCase())) {
       showToast(`Il giocatore "${name}" è già registrato in un'altra squadra!`, 'error');
@@ -1880,7 +2056,7 @@ function addPlayer(teamId) {
   renderTeams();
   saveData();
   showToast(`Giocatore "${name}" aggiunto!`, 'success');
-  document.getElementById(`p_${teamId}`).value = '';
+  nameInput.value = '';
 }
 
 function editTeam(teamId) {
@@ -1898,6 +2074,7 @@ function editTeam(teamId) {
       return;
     }
     
+    // Aggiorna nome nelle partite
     matchesData.forEach(match => {
       if (match.home === team.name) match.home = newName;
       if (match.away === team.name) match.away = newName;
@@ -1920,95 +2097,15 @@ function deleteTeam(teamId) {
   
   const teamName = teamsData.find(t => t.id === teamId)?.name;
   
+  // Rimuovi squadra
   teamsData = teamsData.filter(t => t.id !== teamId);
   
+  // Rimuovi partite della squadra
   matchesData = matchesData.filter(m => m.home !== teamName && m.away !== teamName);
   
   saveData();
   renderAll();
   showToast('Squadra eliminata!', 'success');
-}
-
-function renderTeams() {
-  const teamsDiv = document.getElementById('teams');
-  const homeSelect = document.getElementById('homeTeam');
-  const awaySelect = document.getElementById('awayTeam');
-  
-  teamsDiv.innerHTML = '';
-  homeSelect.innerHTML = '<option value="">Scegli squadra casa</option>';
-  awaySelect.innerHTML = '<option value="">Scegli squadra ospite</option>';
-  
-  if (teamsData.length === 0) {
-    teamsDiv.innerHTML = `
-      <div class="empty-state">
-        <div class="empty-icon">👥</div>
-        <div class="empty-text">Nessuna squadra creata<br>Crea la prima squadra!</div>
-      </div>
-    `;
-    return;
-  }
-  
-  teamsData.forEach(team => {
-    const teamCard = document.createElement('div');
-    teamCard.className = 'teamCard';
-    teamCard.style.borderLeftColor = team.color;
-    
-    let playersHTML = '';
-    team.players.forEach(player => {
-      playersHTML += `
-        <div class="player" style="border-left-color: ${team.color}">
-          <div class="player-info">
-            <div class="player-name">${player.name} ${isAdmin ? `<button onclick="openEditPlayerModal('${player.name}', ${team.id})" style="background:none; border:none; color:var(--accent); cursor:pointer; font-size:12px">✏️</button>` : ''}</div>
-            <div class="player-role">${player.role}</div>
-          </div>
-          <div class="player-stats">
-            <div class="stat-bubble">⚽ ${player.gol || 0}</div>
-            <div class="stat-bubble">🅰️ ${player.assist || 0}</div>
-            <div class="stat-bubble" style="background: rgba(255, 216, 0, 0.1); color: #fdd835">🟨 ${player.giallo || 0}</div>
-            <div class="stat-bubble" style="background: rgba(230, 57, 70, 0.1); color: #e63946">🟥 ${player.rosso || 0}</div>
-          </div>
-        </div>
-      `;
-    });
-    
-    const adminButtons = isAdmin ? `
-      <div class="match-actions">
-        <button class="secondary" onclick="editTeam(${team.id})">✏️ Modifica</button>
-        <button class="danger" onclick="deleteTeam(${team.id})">🗑️ Elimina</button>
-      </div>
-    ` : '';
-    
-    teamCard.innerHTML = `
-      <h3>
-        <span class="team-color" style="background: ${team.color}"></span>
-        ${team.name}
-      </h3>
-      ${isAdmin ? `
-      <div style="margin: 20px 0">
-        <input placeholder="Nome giocatore" id="p_${team.id}">
-        <select id="r_${team.id}">
-          <option value="Giocatore">Giocatore</option>
-          <option value="Capitano">Capitano</option>
-          <option value="Portiere">Portiere</option>
-        </select>
-        <button onclick="addPlayer(${team.id})">➕ Aggiungi Giocatore</button>
-      </div>
-      ` : ''}
-      <div id="list_${team.id}">
-        ${playersHTML || '<div class="empty-text">Nessun giocatore</div>'}
-      </div>
-      ${adminButtons}
-      <div style="font-size: 11px; color: var(--muted); margin-top: 15px; text-align: right">
-        Creata da ${team.createdBy}
-      </div>
-    `;
-    
-    teamsDiv.appendChild(teamCard);
-    homeSelect.innerHTML += `<option value="${team.name}">${team.name}</option>`;
-    awaySelect.innerHTML += `<option value="${team.name}">${team.name}</option>`;
-  });
-  
-  initPalette();
 }
 
 // ================ GESTIONE PARTITE ================
@@ -2081,7 +2178,7 @@ function renderMatches() {
   const matchesDiv = document.getElementById('matches');
   matchesDiv.innerHTML = '';
   
-  if (matchesData.length === 0) {
+  if (!matchesData || matchesData.length === 0) {
     matchesDiv.innerHTML = `
       <div class="empty-state">
         <div class="empty-icon">📅</div>
@@ -2091,7 +2188,12 @@ function renderMatches() {
     return;
   }
   
-  matchesData.sort((a, b) => new Date(b.date) - new Date(a.date));
+  // Ordina per data (più recenti prima)
+  matchesData.sort((a, b) => {
+    const dateA = new Date(a.date + 'T' + a.time);
+    const dateB = new Date(b.date + 'T' + b.time);
+    return dateB - dateA;
+  });
   
   matchesData.forEach(match => {
     const homeTeam = teamsData.find(t => t.name === match.home);
@@ -2360,6 +2462,8 @@ function recalculateStats(matchId) {
 
 function loadPlayersForMatch(match) {
   const select = document.getElementById('evPlayer');
+  if (!select) return;
+  
   select.innerHTML = '<option value="">Seleziona giocatore</option>';
   
   [match.home, match.away].forEach(teamName => {
@@ -2482,7 +2586,7 @@ function saveEditedEvent() {
   const newQty = parseInt(document.getElementById('editEventQty').value) || 0;
   const newType = document.getElementById('editEventType').value;
   
-  // Prima rimuoviamo l'evento vecchio
+  // Rimuovi evento vecchio dalle statistiche
   const t = teamsData.find(team => team.name === event.team);
   if (t) {
     const p = t.players.find(player => player.name === event.player);
@@ -2502,13 +2606,13 @@ function saveEditedEvent() {
     }
   }
   
-  // Aggiorna l'evento
+  // Aggiorna evento
   event.qty = newQty;
   event.type = newType;
   event.editedBy = currentUser;
   event.editedAt = new Date().toLocaleString();
   
-  // Aggiungi l'evento aggiornato
+  // Aggiungi evento aggiornato
   if (t) {
     const p = t.players.find(player => player.name === event.player);
     if (p) {
@@ -2540,9 +2644,11 @@ function saveEditedEvent() {
 function renderEvents(matchId) {
   const match = matchesData.find(m => m.id === matchId);
   const list = document.getElementById('evList');
+  if (!list) return;
+  
   list.innerHTML = '';
   
-  if (match.events.length === 0) {
+  if (!match.events || match.events.length === 0) {
     list.innerHTML = `
       <div class="empty-state" style="padding: 40px 20px">
         <div class="empty-icon">📝</div>
@@ -2640,10 +2746,267 @@ function removeEvent(matchId, eventId) {
   showToast('Evento rimosso!', 'success');
 }
 
+// ================ CLASSIFICA ================
+function renderClassifica() {
+  const table = document.getElementById('table');
+  if (!table) return;
+  
+  table.innerHTML = '';
+  
+  if (!teamsData || teamsData.length === 0) {
+    table.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-icon">🏆</div>
+        <div class="empty-text">Nessuna squadra in classifica<br>Crea le squadre e le partite!</div>
+      </div>
+    `;
+    return;
+  }
+  
+  const standings = teamsData.map(team => {
+    let punti = 0, giocate = 0, vinte = 0, pareggiate = 0, perse = 0, gf = 0, gs = 0;
+    
+    matchesData.filter(m => m.completed).forEach(match => {
+      if (match.home === team.name) {
+        giocate++;
+        gf += match.scoreHome;
+        gs += match.scoreAway;
+        if (match.scoreHome > match.scoreAway) { punti += 3; vinte++; }
+        else if (match.scoreHome === match.scoreAway) { punti += 1; pareggiate++; }
+        else perse++;
+      }
+      if (match.away === team.name) {
+        giocate++;
+        gf += match.scoreAway;
+        gs += match.scoreHome;
+        if (match.scoreAway > match.scoreHome) { punti += 3; vinte++; }
+        else if (match.scoreAway === match.scoreHome) { punti += 1; pareggiate++; }
+        else perse++;
+      }
+    });
+    
+    return {
+      team,
+      punti,
+      giocate,
+      vinte,
+      pareggiate,
+      perse,
+      gf,
+      gs,
+      dr: gf - gs
+    };
+  });
+  
+  standings.sort((a, b) => b.punti - a.punti || b.dr - a.dr || b.gf - a.gf);
+  
+  standings.forEach((standing, index) => {
+    const row = document.createElement('div');
+    row.className = 'standing-row';
+    row.style.borderLeftColor = standing.team.color;
+    
+    row.innerHTML = `
+      <div class="standing-pos">${index + 1}</div>
+      <div class="standing-team">
+        <div class="standing-team-name">${standing.team.name}</div>
+      </div>
+      <div class="standing-stats">
+        <div class="standing-stat">${standing.giocate}</div>
+        <div class="standing-stat">${standing.vinte}</div>
+        <div class="standing-stat">${standing.pareggiate}</div>
+        <div class="standing-stat">${standing.perse}</div>
+        <div class="standing-stat">${standing.gf}</div>
+        <div class="standing-stat">${standing.gs}</div>
+        <div class="standing-points">${standing.punti}</div>
+      </div>
+    `;
+    
+    table.appendChild(row);
+  });
+}
+
+// ================ STATISTICHE ================
+function renderStats() {
+  let allPlayers = [];
+  teamsData.forEach(t => {
+    if (t.players) {
+      t.players.forEach(p => {
+        allPlayers.push({
+          team: t.name,
+          teamColor: t.color,
+          ...p
+        });
+      });
+    }
+  });
+  
+  renderTopList('topScorers', allPlayers, 'gol', '⚽', 'Marcatori');
+  renderTopList('topAssists', allPlayers, 'assist', '🅰️', 'Assist');
+  renderTopList('topYellows', allPlayers, 'giallo', '🟨', 'Gialli', '#fdd835');
+  renderTopList('topReds', allPlayers, 'rosso', '🟥', 'Rossi', '#e63946');
+}
+
+function renderTopList(elementId, players, statKey, icon, label, color = null) {
+  const element = document.getElementById(elementId);
+  if (!element) return;
+  
+  element.innerHTML = '';
+  
+  const sorted = [...players].sort((a, b) => (b[statKey] || 0) - (a[statKey] || 0));
+  const topPlayers = sorted.slice(0, 10).filter(p => (p[statKey] || 0) > 0);
+  
+  if (topPlayers.length === 0) {
+    element.innerHTML = `
+      <div style="text-align: center; padding: 30px; color: var(--muted); font-size: 14px">
+        Nessun dato disponibile
+      </div>
+    `;
+    return;
+  }
+  
+  topPlayers.forEach((player, index) => {
+    const playerDiv = document.createElement('div');
+    playerDiv.className = 'player';
+    playerDiv.style.borderLeftColor = color || player.teamColor;
+    
+    playerDiv.innerHTML = `
+      <div class="player-info">
+        <div class="player-name">
+          <span style="font-weight: 900; color: var(--accent); margin-right: 8px">${index + 1}.</span>
+          ${player.name}
+        </div>
+        <div class="player-role">${player.team} • ${player.role}</div>
+      </div>
+      <div class="player-stats">
+        <div class="stat-bubble" style="${color ? `background: ${color}20; color: ${color}` : ''}">
+          ${icon} ${player[statKey] || 0}
+        </div>
+      </div>
+    `;
+    
+    element.appendChild(playerDiv);
+  });
+}
+
+// ================ IL MIO SCORE ================
+function renderMyScore() {
+  if (!currentUser) return;
+  
+  let myGoals = 0, myAssists = 0, myYellows = 0, myReds = 0, myPresenze = 0;
+  
+  teamsData.forEach(team => {
+    if (team.players) {
+      team.players.filter(p => p.name.toLowerCase() === currentUser.toLowerCase()).forEach(player => {
+        myGoals += player.gol || 0;
+        myAssists += player.assist || 0;
+        myYellows += player.giallo || 0;
+        myReds += player.rosso || 0;
+        myPresenze += player.presenze || 0;
+      });
+    }
+  });
+  
+  const statsDiv = document.getElementById('myScoreStats');
+  if (statsDiv) {
+    statsDiv.innerHTML = `
+      <div class="my-score-stats">
+        <div class="my-stat-card">
+          <div style="font-size: 14px; color: var(--muted)">Gol Totali</div>
+          <div class="my-stat-value">${myGoals}</div>
+          <div class="my-stat-label">⚽ Gol</div>
+        </div>
+        <div class="my-stat-card">
+          <div style="font-size: 14px; color: var(--muted)">Assist Totali</div>
+          <div class="my-stat-value">${myAssists}</div>
+          <div class="my-stat-label">🅰️ Assist</div>
+        </div>
+        <div class="my-stat-card">
+          <div style="font-size: 14px; color: var(--muted)">Presenze</div>
+          <div class="my-stat-value">${myPresenze}</div>
+          <div class="my-stat-label">👥 Partite</div>
+        </div>
+        <div class="my-stat-card">
+          <div style="font-size: 14px; color: var(--muted)">Ruolo</div>
+          <div class="my-stat-value">${currentUserRole}</div>
+          <div class="my-stat-label">${currentUserIcon} ${currentUserRole}</div>
+        </div>
+      </div>
+    `;
+  }
+  
+  const detailsDiv = document.getElementById('myScoreDetails');
+  if (detailsDiv) {
+    detailsDiv.innerHTML = '';
+    
+    const myPlayers = [];
+    teamsData.forEach(team => {
+      if (team.players) {
+        team.players.filter(p => p.name.toLowerCase() === currentUser.toLowerCase()).forEach(player => {
+          myPlayers.push({ team, ...player });
+        });
+      }
+    });
+    
+    if (myPlayers.length > 0) {
+      const playersCard = document.createElement('div');
+      playersCard.className = 'card';
+      playersCard.innerHTML = `<h3>👤 I Miei Dati Giocatore</h3>`;
+      
+      myPlayers.forEach(playerData => {
+        const playerDiv = document.createElement('div');
+        playerDiv.className = 'player';
+        playerDiv.style.borderLeftColor = playerData.team.color;
+        
+        playerDiv.innerHTML = `
+          <div>
+            <div style="font-weight: 700; font-size: 16px">${playerData.name}</div>
+            <div style="font-size: 13px; color: var(--muted); margin-top: 4px">
+              ${playerData.team.name} • ${playerData.role}
+            </div>
+          </div>
+          <div style="text-align: right">
+            <div style="display: flex; gap: 15px">
+              <div style="text-align: center">
+                <div style="font-size: 20px; font-weight: 900">${playerData.gol || 0}</div>
+                <div style="font-size: 11px; color: var(--muted)">⚽ Gol</div>
+              </div>
+              <div style="text-align: center">
+                <div style="font-size: 20px; font-weight: 900">${playerData.assist || 0}</div>
+                <div style="font-size: 11px; color: var(--muted)">🅰️ Assist</div>
+              </div>
+            </div>
+            <div style="font-size: 11px; color: var(--muted); margin-top: 4px">
+              🟨${playerData.giallo || 0} 🟥${playerData.rosso || 0} 👥${playerData.presenze || 0}
+            </div>
+          </div>
+        `;
+        
+        playersCard.appendChild(playerDiv);
+      });
+      
+      detailsDiv.appendChild(playersCard);
+    } else if (isAdmin) {
+      detailsDiv.innerHTML = `
+        <div class="card">
+          <h3>👤 Informazioni Admin</h3>
+          <div style="padding: 20px; text-align: center">
+            <div style="font-size: 48px; margin-bottom: 20px">👑</div>
+            <div style="font-size: 18px; font-weight: 700; margin-bottom: 10px">${currentUser} (Admin)</div>
+            <div style="color: var(--muted); font-size: 14px">
+              Hai accesso completo a tutte le funzioni di gestione del campionato
+            </div>
+          </div>
+        </div>
+      `;
+    }
+  }
+}
+
 // ================ CALENDARIO A GIORNATE ================
 function loadMatchday(matchday) {
   currentMatchday = parseInt(matchday);
   const content = document.getElementById('matchdayContent');
+  if (!content) return;
   
   const matchesInMatchday = matchesData.filter(m => m.matchday === currentMatchday);
   const completedMatches = matchesInMatchday.filter(m => m.completed).length;
@@ -2982,248 +3345,6 @@ function deletePlayerFromSystem() {
   showToast('Giocatore eliminato dal sistema!', 'success');
 }
 
-// ================ CLASSIFICA ================
-function renderClassifica() {
-  const table = document.getElementById('table');
-  table.innerHTML = '';
-  
-  if (teamsData.length === 0) {
-    table.innerHTML = `
-      <div class="empty-state">
-        <div class="empty-icon">🏆</div>
-        <div class="empty-text">Nessuna squadra in classifica<br>Crea le squadre e le partite!</div>
-      </div>
-    `;
-    return;
-  }
-  
-  const standings = teamsData.map(team => {
-    let punti = 0, giocate = 0, vinte = 0, pareggiate = 0, perse = 0, gf = 0, gs = 0;
-    
-    matchesData.filter(m => m.completed).forEach(match => {
-      if (match.home === team.name) {
-        giocate++;
-        gf += match.scoreHome;
-        gs += match.scoreAway;
-        if (match.scoreHome > match.scoreAway) { punti += 3; vinte++; }
-        else if (match.scoreHome === match.scoreAway) { punti += 1; pareggiate++; }
-        else perse++;
-      }
-      if (match.away === team.name) {
-        giocate++;
-        gf += match.scoreAway;
-        gs += match.scoreHome;
-        if (match.scoreAway > match.scoreHome) { punti += 3; vinte++; }
-        else if (match.scoreAway === match.scoreHome) { punti += 1; pareggiate++; }
-        else perse++;
-      }
-    });
-    
-    return {
-      team,
-      punti,
-      giocate,
-      vinte,
-      pareggiate,
-      perse,
-      gf,
-      gs,
-      dr: gf - gs
-    };
-  });
-  
-  standings.sort((a, b) => b.punti - a.punti || b.dr - a.dr || b.gf - a.gf);
-  
-  standings.forEach((standing, index) => {
-    const row = document.createElement('div');
-    row.className = 'standing-row';
-    row.style.borderLeftColor = standing.team.color;
-    
-    row.innerHTML = `
-      <div class="standing-pos">${index + 1}</div>
-      <div class="standing-team">
-        <div class="standing-team-name">${standing.team.name}</div>
-      </div>
-      <div class="standing-stats">
-        <div class="standing-stat">${standing.giocate}</div>
-        <div class="standing-stat">${standing.vinte}</div>
-        <div class="standing-stat">${standing.pareggiate}</div>
-        <div class="standing-stat">${standing.perse}</div>
-        <div class="standing-stat">${standing.gf}</div>
-        <div class="standing-stat">${standing.gs}</div>
-        <div class="standing-points">${standing.punti}</div>
-      </div>
-    `;
-    
-    table.appendChild(row);
-  });
-}
-
-// ================ STATISTICHE ================
-function renderStats() {
-  let allPlayers = [];
-  teamsData.forEach(t => {
-    t.players.forEach(p => {
-      allPlayers.push({
-        team: t.name,
-        teamColor: t.color,
-        ...p
-      });
-    });
-  });
-  
-  renderTopList('topScorers', allPlayers, 'gol', '⚽', 'Marcatori');
-  renderTopList('topAssists', allPlayers, 'assist', '🅰️', 'Assist');
-  renderTopList('topYellows', allPlayers, 'giallo', '🟨', 'Gialli', '#fdd835');
-  renderTopList('topReds', allPlayers, 'rosso', '🟥', 'Rossi', '#e63946');
-}
-
-function renderTopList(elementId, players, statKey, icon, label, color = null) {
-  const element = document.getElementById(elementId);
-  element.innerHTML = '';
-  
-  const sorted = [...players].sort((a, b) => (b[statKey] || 0) - (a[statKey] || 0));
-  const topPlayers = sorted.slice(0, 10).filter(p => (p[statKey] || 0) > 0);
-  
-  if (topPlayers.length === 0) {
-    element.innerHTML = `
-      <div style="text-align: center; padding: 30px; color: var(--muted); font-size: 14px">
-        Nessun dato disponibile
-      </div>
-    `;
-    return;
-  }
-  
-  topPlayers.forEach((player, index) => {
-    const playerDiv = document.createElement('div');
-    playerDiv.className = 'player';
-    playerDiv.style.borderLeftColor = color || player.teamColor;
-    
-    playerDiv.innerHTML = `
-      <div class="player-info">
-        <div class="player-name">
-          <span style="font-weight: 900; color: var(--accent); margin-right: 8px">${index + 1}.</span>
-          ${player.name}
-        </div>
-        <div class="player-role">${player.team} • ${player.role}</div>
-      </div>
-      <div class="player-stats">
-        <div class="stat-bubble" style="${color ? `background: ${color}20; color: ${color}` : ''}">
-          ${icon} ${player[statKey] || 0}
-        </div>
-      </div>
-    `;
-    
-    element.appendChild(playerDiv);
-  });
-}
-
-// ================ IL MIO SCORE ================
-function renderMyScore() {
-  if (!currentUser) return;
-  
-  let myGoals = 0, myAssists = 0, myYellows = 0, myReds = 0, myPresenze = 0;
-  
-  teamsData.forEach(team => {
-    team.players.filter(p => p.name.toLowerCase() === currentUser.toLowerCase()).forEach(player => {
-      myGoals += player.gol || 0;
-      myAssists += player.assist || 0;
-      myYellows += player.giallo || 0;
-      myReds += player.rosso || 0;
-      myPresenze += player.presenze || 0;
-    });
-  });
-  
-  const statsDiv = document.getElementById('myScoreStats');
-  statsDiv.innerHTML = `
-    <div class="my-score-stats">
-      <div class="my-stat-card">
-        <div style="font-size: 14px; color: var(--muted)">Gol Totali</div>
-        <div class="my-stat-value">${myGoals}</div>
-        <div class="my-stat-label">⚽ Gol</div>
-      </div>
-      <div class="my-stat-card">
-        <div style="font-size: 14px; color: var(--muted)">Assist Totali</div>
-        <div class="my-stat-value">${myAssists}</div>
-        <div class="my-stat-label">🅰️ Assist</div>
-      </div>
-      <div class="my-stat-card">
-        <div style="font-size: 14px; color: var(--muted)">Presenze</div>
-        <div class="my-stat-value">${myPresenze}</div>
-        <div class="my-stat-label">👥 Partite</div>
-      </div>
-      <div class="my-stat-card">
-        <div style="font-size: 14px; color: var(--muted)">Ruolo</div>
-        <div class="my-stat-value">${currentUserRole}</div>
-        <div class="my-stat-label">${currentUserIcon} ${currentUserRole}</div>
-      </div>
-    </div>
-  `;
-  
-  const detailsDiv = document.getElementById('myScoreDetails');
-  detailsDiv.innerHTML = '';
-  
-  const myPlayers = [];
-  teamsData.forEach(team => {
-    team.players.filter(p => p.name.toLowerCase() === currentUser.toLowerCase()).forEach(player => {
-      myPlayers.push({ team, ...player });
-    });
-  });
-  
-  if (myPlayers.length > 0) {
-    const playersCard = document.createElement('div');
-    playersCard.className = 'card';
-    playersCard.innerHTML = `<h3>👤 I Miei Dati Giocatore</h3>`;
-    
-    myPlayers.forEach(playerData => {
-      const playerDiv = document.createElement('div');
-      playerDiv.className = 'player';
-      playerDiv.style.borderLeftColor = playerData.team.color;
-      
-      playerDiv.innerHTML = `
-        <div>
-          <div style="font-weight: 700; font-size: 16px">${playerData.name}</div>
-          <div style="font-size: 13px; color: var(--muted); margin-top: 4px">
-            ${playerData.team.name} • ${playerData.role}
-          </div>
-        </div>
-        <div style="text-align: right">
-          <div style="display: flex; gap: 15px">
-            <div style="text-align: center">
-              <div style="font-size: 20px; font-weight: 900">${playerData.gol || 0}</div>
-              <div style="font-size: 11px; color: var(--muted)">⚽ Gol</div>
-            </div>
-            <div style="text-align: center">
-              <div style="font-size: 20px; font-weight: 900">${playerData.assist || 0}</div>
-              <div style="font-size: 11px; color: var(--muted)">🅰️ Assist</div>
-            </div>
-          </div>
-          <div style="font-size: 11px; color: var(--muted); margin-top: 4px">
-            🟨${playerData.giallo || 0} 🟥${playerData.rosso || 0} 👥${playerData.presenze || 0}
-          </div>
-        </div>
-      `;
-      
-      playersCard.appendChild(playerDiv);
-    });
-    
-    detailsDiv.appendChild(playersCard);
-  } else if (isAdmin) {
-    detailsDiv.innerHTML = `
-      <div class="card">
-        <h3>👤 Informazioni Admin</h3>
-        <div style="padding: 20px; text-align: center">
-          <div style="font-size: 48px; margin-bottom: 20px">👑</div>
-          <div style="font-size: 18px; font-weight: 700; margin-bottom: 10px">${currentUser} (Admin)</div>
-          <div style="color: var(--muted); font-size: 14px">
-            Hai accesso completo a tutte le funzioni di gestione del campionato
-          </div>
-        </div>
-      </div>
-    `;
-  }
-}
-
 // ================ BACKUP & RIPRISTINO ================
 function renderBackup() {
   updateBackupInfo();
@@ -3234,22 +3355,28 @@ function updateBackupInfo() {
   let totalEvents = 0;
   
   teamsData.forEach(t => {
-    totalPlayers += t.players.length;
+    totalPlayers += t.players ? t.players.length : 0;
   });
   
   matchesData.forEach(m => {
-    totalEvents += m.events.length;
+    totalEvents += m.events ? m.events.length : 0;
   });
   
-  document.getElementById('backupTeamsCount').textContent = teamsData.length;
-  document.getElementById('backupMatchesCount').textContent = matchesData.length;
-  document.getElementById('backupPlayersCount').textContent = totalPlayers;
-  document.getElementById('backupEventsCount').textContent = totalEvents;
+  // Admin view
+  if (document.getElementById('backupTeamsCount')) {
+    document.getElementById('backupTeamsCount').textContent = teamsData.length;
+    document.getElementById('backupMatchesCount').textContent = matchesData.length;
+    document.getElementById('backupPlayersCount').textContent = totalPlayers;
+    document.getElementById('backupEventsCount').textContent = totalEvents;
+  }
   
-  document.getElementById('userBackupTeamsCount').textContent = teamsData.length;
-  document.getElementById('userBackupMatchesCount').textContent = matchesData.length;
-  document.getElementById('userBackupPlayersCount').textContent = totalPlayers;
-  document.getElementById('userBackupEventsCount').textContent = totalEvents;
+  // User view
+  if (document.getElementById('userBackupTeamsCount')) {
+    document.getElementById('userBackupTeamsCount').textContent = teamsData.length;
+    document.getElementById('userBackupMatchesCount').textContent = matchesData.length;
+    document.getElementById('userBackupPlayersCount').textContent = totalPlayers;
+    document.getElementById('userBackupEventsCount').textContent = totalEvents;
+  }
 }
 
 function exportData() {
@@ -3264,7 +3391,7 @@ function exportData() {
     lastUpdate: Date.now(),
     exportedBy: currentUser,
     exportedAt: new Date().toISOString(),
-    version: '4.0-firebase'
+    version: '5.0-firebase-fixed'
   };
   
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
@@ -3398,6 +3525,8 @@ function performLogout() {
 
 function showToast(message, type = 'info') {
   const container = document.getElementById('toastContainer');
+  if (!container) return;
+  
   const toast = document.createElement('div');
   toast.className = `toast toast-${type}`;
   
@@ -3550,6 +3679,8 @@ function updateSyncStatus(text, success = true) {
   const syncText = document.getElementById('syncText');
   const syncIcon = document.getElementById('syncIcon');
   
+  if (!syncEl || !syncText || !syncIcon) return;
+  
   syncText.textContent = text;
   syncEl.className = success ? 'sync-status' : 'sync-status error';
   syncEl.style.display = 'flex';
@@ -3603,13 +3734,15 @@ window.openEditPlayerModal = openEditPlayerModal;
 window.closeEditPlayerModal = closeEditPlayerModal;
 window.saveEditedPlayer = saveEditedPlayer;
 window.deletePlayerFromSystem = deletePlayerFromSystem;
+window.forceRefresh = forceRefresh;
 
 // ================ INIZIALIZZAZIONE ================
 document.addEventListener('DOMContentLoaded', async function() {
   const today = new Date().toISOString().split('T')[0];
-  if (document.getElementById('matchDate')) {
-    document.getElementById('matchDate').value = today;
-    document.getElementById('matchDate').min = today;
+  const matchDateInput = document.getElementById('matchDate');
+  if (matchDateInput) {
+    matchDateInput.value = today;
+    matchDateInput.min = today;
   }
   
   initPalette();
