@@ -18,6 +18,7 @@
   --danger: #ef476f;
   --blue: #118ab2;
   --purple: #9d4edd;
+  --highlight-yellow: #fff9c4;
 }
 
 * {
@@ -448,11 +449,32 @@ button.danger:hover {
   border-radius: 12px;
   border-left: 4px solid;
   transition: all 0.3s ease;
+  position: relative;
 }
 
 .player:hover {
   background: rgba(0, 212, 170, 0.1);
   transform: translateX(5px);
+}
+
+/* Nuova classe per evidenziare il giocatore corrente */
+.player.current-user {
+  background: rgba(255, 249, 196, 0.15);
+  border-left: 4px solid var(--warning);
+  box-shadow: 0 0 0 2px rgba(255, 217, 102, 0.2);
+}
+
+.player.current-user::after {
+  content: "👤 TU";
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  font-size: 10px;
+  background: var(--warning);
+  color: black;
+  padding: 2px 6px;
+  border-radius: 10px;
+  font-weight: 900;
 }
 
 .player-info {
@@ -1878,7 +1900,9 @@ function addTeam() {
     color: selectedColor,
     players: [],
     createdBy: currentUser,
-    createdAt: new Date().toLocaleString()
+    createdAt: new Date().toLocaleString(),
+    // Aggiunta: flag per identificare la squadra riserve
+    isReserveTeam: name.toLowerCase().includes('riserve') || name.toLowerCase().includes('riserva')
   };
   
   teamsData.push(newTeam);
@@ -1939,20 +1963,26 @@ function renderTeams() {
   
   // Renderizza ogni squadra
   teamsData.forEach(team => {
-    console.log('Rendering team:', team.name, 'players:', team.players);
+    console.log('Rendering team:', team.name, 'players:', team.players, 'isReserveTeam:', team.isReserveTeam);
     
     const teamCard = document.createElement('div');
     teamCard.className = 'teamCard';
     teamCard.style.borderLeftColor = team.color;
     
+    // Controlla se è la squadra riserve
+    const isReserveTeam = team.isReserveTeam || team.name.toLowerCase().includes('riserve') || team.name.toLowerCase().includes('riserva');
+    
     // Costruisci HTML giocatori
     let playersHTML = '';
     if (team.players && team.players.length > 0) {
       team.players.forEach(player => {
+        const isCurrentUser = currentUser && player.name.toLowerCase() === currentUser.toLowerCase();
+        const playerClass = isCurrentUser ? 'player current-user' : 'player';
+        
         playersHTML += `
-          <div class="player" style="border-left-color: ${team.color}">
+          <div class="${playerClass}" style="border-left-color: ${team.color}">
             <div class="player-info">
-              <div class="player-name">${player.name} ${isAdmin ? `<button onclick="openEditPlayerModal('${player.name}', ${team.id})" style="background:none; border:none; color:var(--accent); cursor:pointer; font-size:12px">✏️</button>` : ''}</div>
+              <div class="player-name">${player.name} ${isAdmin && !isReserveTeam ? `<button onclick="openEditPlayerModal('${player.name}', ${team.id})" style="background:none; border:none; color:var(--accent); cursor:pointer; font-size:12px">✏️</button>` : ''}</div>
               <div class="player-role">${player.role}</div>
             </div>
             <div class="player-stats">
@@ -1968,27 +1998,40 @@ function renderTeams() {
       playersHTML = '<div class="empty-text" style="padding: 20px; text-align: center; color: var(--muted)">Nessun giocatore</div>';
     }
     
-    // Pulsanti admin
-    const adminButtons = isAdmin ? `
-      <div style="margin: 20px 0">
-        <input placeholder="Nome giocatore" id="p_${team.id}">
-        <select id="r_${team.id}">
-          <option value="Giocatore">Giocatore</option>
-          <option value="Capitano">Capitano</option>
-          <option value="Portiere">Portiere</option>
-        </select>
-        <button onclick="addPlayer(${team.id})">➕ Aggiungi Giocatore</button>
-      </div>
-      <div class="match-actions">
-        <button class="secondary" onclick="editTeam(${team.id})">✏️ Modifica</button>
-        <button class="danger" onclick="deleteTeam(${team.id})">🗑️ Elimina</button>
-      </div>
-    ` : '';
+    // Pulsanti admin (non mostrati per squadra riserve)
+    let adminButtons = '';
+    if (isAdmin && !isReserveTeam) {
+      adminButtons = `
+        <div style="margin: 20px 0">
+          <input placeholder="Nome giocatore" id="p_${team.id}">
+          <select id="r_${team.id}">
+            <option value="Giocatore">Giocatore</option>
+            <option value="Capitano">Capitano</option>
+            <option value="Portiere">Portiere</option>
+          </select>
+          <button onclick="addPlayer(${team.id})">➕ Aggiungi Giocatore</button>
+        </div>
+        <div class="match-actions">
+          <button class="secondary" onclick="editTeam(${team.id})">✏️ Modifica</button>
+          <button class="danger" onclick="deleteTeam(${team.id})">🗑️ Elimina</button>
+        </div>
+      `;
+    } else if (isReserveTeam) {
+      adminButtons = `
+        <div style="margin: 20px 0; padding: 15px; background: rgba(255, 209, 102, 0.1); border-radius: 12px; border-left: 4px solid var(--warning)">
+          <div style="font-size: 14px; color: var(--warning); font-weight: 700; display: flex; align-items: center; gap: 8px">
+            <span>⚠️</span>
+            <span>Squadra riserve - Giocatori non modificabili</span>
+          </div>
+        </div>
+      `;
+    }
     
     teamCard.innerHTML = `
       <h3>
         <span class="team-color" style="background: ${team.color}"></span>
         ${team.name}
+        ${isReserveTeam ? '<span style="font-size: 12px; color: var(--warning); background: rgba(255, 209, 102, 0.2); padding: 4px 8px; border-radius: 10px; margin-left: 10px">RISERVE</span>' : ''}
       </h3>
       ${adminButtons}
       <div id="list_${team.id}">
@@ -2001,11 +2044,11 @@ function renderTeams() {
     
     teamsDiv.appendChild(teamCard);
     
-    // Aggiungi ai select per le partite
-    if (homeSelect) {
+    // Aggiungi ai select per le partite (escludendo squadra riserve)
+    if (homeSelect && !isReserveTeam) {
       homeSelect.innerHTML += `<option value="${team.name}">${team.name}</option>`;
     }
-    if (awaySelect) {
+    if (awaySelect && !isReserveTeam) {
       awaySelect.innerHTML += `<option value="${team.name}">${team.name}</option>`;
     }
   });
@@ -2066,6 +2109,10 @@ function editTeam(teamId) {
   }
   
   const team = teamsData.find(t => t.id === teamId);
+  
+  // Controlla se è squadra riserve
+  const isReserveTeam = team.isReserveTeam || team.name.toLowerCase().includes('riserve') || team.name.toLowerCase().includes('riserva');
+  
   const newName = prompt('Nuovo nome squadra:', team.name);
   
   if (newName && newName.trim() && newName !== team.name) {
@@ -2081,6 +2128,9 @@ function editTeam(teamId) {
     });
     
     team.name = newName.trim();
+    // Aggiorna flag riserve se necessario
+    team.isReserveTeam = newName.toLowerCase().includes('riserve') || newName.toLowerCase().includes('riserva');
+    
     saveData();
     renderAll();
     showToast('Squadra modificata!', 'success');
@@ -2093,9 +2143,14 @@ function deleteTeam(teamId) {
     return;
   }
   
+  const team = teamsData.find(t => t.id === teamId);
+  
+  // Controlla se è squadra riserve
+  const isReserveTeam = team.isReserveTeam || team.name.toLowerCase().includes('riserve') || team.name.toLowerCase().includes('riserva');
+  
   if (!confirm('Eliminare questa squadra e tutti i suoi giocatori?\nQuesta azione è irreversibile!')) return;
   
-  const teamName = teamsData.find(t => t.id === teamId)?.name;
+  const teamName = team.name;
   
   // Rimuovi squadra
   teamsData = teamsData.filter(t => t.id !== teamId);
@@ -2763,7 +2818,13 @@ function renderClassifica() {
     return;
   }
   
-  const standings = teamsData.map(team => {
+  // Filtra le squadre: escludi squadra riserve
+  const filteredTeams = teamsData.filter(team => {
+    const isReserveTeam = team.isReserveTeam || team.name.toLowerCase().includes('riserve') || team.name.toLowerCase().includes('riserva');
+    return !isReserveTeam;
+  });
+  
+  const standings = filteredTeams.map(team => {
     let punti = 0, giocate = 0, vinte = 0, pareggiate = 0, perse = 0, gf = 0, gs = 0;
     
     matchesData.filter(m => m.completed).forEach(match => {
@@ -2823,6 +2884,33 @@ function renderClassifica() {
     
     table.appendChild(row);
   });
+  
+  // Aggiungi nota se ci sono squadre riserve escluse
+  const reserveTeams = teamsData.filter(team => {
+    const isReserveTeam = team.isReserveTeam || team.name.toLowerCase().includes('riserve') || team.name.toLowerCase().includes('riserva');
+    return isReserveTeam;
+  });
+  
+  if (reserveTeams.length > 0) {
+    const noteDiv = document.createElement('div');
+    noteDiv.style.cssText = `
+      text-align: center;
+      padding: 15px;
+      margin-top: 20px;
+      font-size: 13px;
+      color: var(--muted);
+      background: rgba(255, 209, 102, 0.1);
+      border-radius: 12px;
+      border-left: 4px solid var(--warning);
+    `;
+    noteDiv.innerHTML = `
+      <div style="display: flex; align-items: center; justify-content: center; gap: 8px">
+        <span>⚠️</span>
+        <span>La squadra "${reserveTeams[0].name}" è esclusa dalla classifica in quanto squadra riserve</span>
+      </div>
+    `;
+    table.appendChild(noteDiv);
+  }
 }
 
 // ================ STATISTICHE ================
@@ -2865,9 +2953,13 @@ function renderTopList(elementId, players, statKey, icon, label, color = null) {
   }
   
   topPlayers.forEach((player, index) => {
+    const isCurrentUser = currentUser && player.name.toLowerCase() === currentUser.toLowerCase();
     const playerDiv = document.createElement('div');
     playerDiv.className = 'player';
     playerDiv.style.borderLeftColor = color || player.teamColor;
+    if (isCurrentUser) {
+      playerDiv.classList.add('current-user');
+    }
     
     playerDiv.innerHTML = `
       <div class="player-info">
@@ -2954,7 +3046,7 @@ function renderMyScore() {
       
       myPlayers.forEach(playerData => {
         const playerDiv = document.createElement('div');
-        playerDiv.className = 'player';
+        playerDiv.className = 'player current-user';
         playerDiv.style.borderLeftColor = playerData.team.color;
         
         playerDiv.innerHTML = `
@@ -3199,6 +3291,13 @@ function openEditPlayerModal(playerName, teamId) {
   
   if (!player) return;
   
+  // Controlla se è squadra riserve
+  const isReserveTeam = team.isReserveTeam || team.name.toLowerCase().includes('riserve') || team.name.toLowerCase().includes('riserva');
+  if (isReserveTeam) {
+    showToast('Non puoi modificare i giocatori della squadra riserve!', 'error');
+    return;
+  }
+  
   editingPlayerId = player.id;
   editingPlayerTeam = teamId;
   
@@ -3232,6 +3331,14 @@ function saveEditedPlayer() {
   
   if (!player) return;
   
+  // Controlla se è squadra riserve
+  const isReserveTeam = currentTeam.isReserveTeam || currentTeam.name.toLowerCase().includes('riserve') || currentTeam.name.toLowerCase().includes('riserva');
+  if (isReserveTeam) {
+    showToast('Non puoi modificare i giocatori della squadra riserve!', 'error');
+    closeEditPlayerModal();
+    return;
+  }
+  
   const newName = document.getElementById('editPlayerName').value.trim();
   const newRole = document.getElementById('editPlayerRole').value;
   const newGol = parseInt(document.getElementById('editPlayerGol').value) || 0;
@@ -3254,6 +3361,13 @@ function saveEditedPlayer() {
   if (transferTeamId) {
     const newTeam = teamsData.find(t => t.id === parseInt(transferTeamId));
     if (newTeam) {
+      // Verifica se è squadra riserve
+      const isNewTeamReserve = newTeam.isReserveTeam || newTeam.name.toLowerCase().includes('riserve') || newTeam.name.toLowerCase().includes('riserva');
+      if (isNewTeamReserve) {
+        showToast('Non puoi trasferire giocatori alla squadra riserve!', 'error');
+        return;
+      }
+      
       // Verifica se il giocatore esiste già nella nuova squadra
       if (newTeam.players.find(p => p.name.toLowerCase() === newName.toLowerCase())) {
         showToast(`Il giocatore "${newName}" esiste già nella squadra ${newTeam.name}!`, 'error');
@@ -3323,12 +3437,20 @@ function saveEditedPlayer() {
 function deletePlayerFromSystem() {
   if (!isAdmin || !editingPlayerId || !editingPlayerTeam) return;
   
-  if (!confirm('Eliminare completamente questo giocatore?\nTutte le sue statistiche e eventi saranno rimossi!')) return;
-  
   const currentTeam = teamsData.find(t => t.id === editingPlayerTeam);
   const player = currentTeam.players.find(p => p.id === editingPlayerId);
   
   if (!player) return;
+  
+  // Controlla se è squadra riserve
+  const isReserveTeam = currentTeam.isReserveTeam || currentTeam.name.toLowerCase().includes('riserve') || currentTeam.name.toLowerCase().includes('riserva');
+  if (isReserveTeam) {
+    showToast('Non puoi eliminare giocatori dalla squadra riserve!', 'error');
+    closeEditPlayerModal();
+    return;
+  }
+  
+  if (!confirm('Eliminare completamente questo giocatore?\nTutte le sue statistiche e eventi saranno rimossi!')) return;
   
   // Rimuovi tutti gli eventi del giocatore
   matchesData.forEach(match => {
