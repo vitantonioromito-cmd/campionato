@@ -457,7 +457,6 @@ button.danger:hover {
   transform: translateX(5px);
 }
 
-/* Nuova classe per evidenziare il giocatore corrente */
 .player.current-user {
   background: rgba(255, 249, 196, 0.15);
   border-left: 4px solid var(--warning);
@@ -1998,9 +1997,9 @@ function renderTeams() {
       playersHTML = '<div class="empty-text" style="padding: 20px; text-align: center; color: var(--muted)">Nessun giocatore</div>';
     }
     
-    // Pulsanti admin (non mostrati per squadra riserve)
+    // Pulsanti admin
     let adminButtons = '';
-    if (isAdmin && !isReserveTeam) {
+    if (isAdmin) {
       adminButtons = `
         <div style="margin: 20px 0">
           <input placeholder="Nome giocatore" id="p_${team.id}">
@@ -2014,15 +2013,6 @@ function renderTeams() {
         <div class="match-actions">
           <button class="secondary" onclick="editTeam(${team.id})">✏️ Modifica</button>
           <button class="danger" onclick="deleteTeam(${team.id})">🗑️ Elimina</button>
-        </div>
-      `;
-    } else if (isReserveTeam) {
-      adminButtons = `
-        <div style="margin: 20px 0; padding: 15px; background: rgba(255, 209, 102, 0.1); border-radius: 12px; border-left: 4px solid var(--warning)">
-          <div style="font-size: 14px; color: var(--warning); font-weight: 700; display: flex; align-items: center; gap: 8px">
-            <span>⚠️</span>
-            <span>Squadra riserve - Giocatori non modificabili</span>
-          </div>
         </div>
       `;
     }
@@ -2044,11 +2034,11 @@ function renderTeams() {
     
     teamsDiv.appendChild(teamCard);
     
-    // Aggiungi ai select per le partite (escludendo squadra riserve)
-    if (homeSelect && !isReserveTeam) {
+    // Aggiungi ai select per le partite
+    if (homeSelect) {
       homeSelect.innerHTML += `<option value="${team.name}">${team.name}</option>`;
     }
-    if (awaySelect && !isReserveTeam) {
+    if (awaySelect) {
       awaySelect.innerHTML += `<option value="${team.name}">${team.name}</option>`;
     }
   });
@@ -2110,7 +2100,7 @@ function editTeam(teamId) {
   
   const team = teamsData.find(t => t.id === teamId);
   
-  // Controlla se è squadra riserve
+  // Non chiedere conferma per squadre riserve
   const isReserveTeam = team.isReserveTeam || team.name.toLowerCase().includes('riserve') || team.name.toLowerCase().includes('riserva');
   
   const newName = prompt('Nuovo nome squadra:', team.name);
@@ -2145,7 +2135,7 @@ function deleteTeam(teamId) {
   
   const team = teamsData.find(t => t.id === teamId);
   
-  // Controlla se è squadra riserve
+  // Non chiedere conferma per squadre riserve
   const isReserveTeam = team.isReserveTeam || team.name.toLowerCase().includes('riserve') || team.name.toLowerCase().includes('riserva');
   
   if (!confirm('Eliminare questa squadra e tutti i suoi giocatori?\nQuesta azione è irreversibile!')) return;
@@ -2221,11 +2211,53 @@ function deleteMatch(matchId) {
   
   if (!confirm('Eliminare questa partita?\nTutti gli eventi saranno rimossi.')) return;
   
+  const match = matchesData.find(m => m.id === matchId);
+  
+  // PRIMA PRIORITÀ: Rimuovi eventi dalle statistiche dei giocatori
+  if (match.events && match.events.length > 0) {
+    match.events.forEach(event => {
+      const team = teamsData.find(t => t.name === event.team);
+      if (team) {
+        const player = team.players.find(p => p.name === event.player);
+        if (player) {
+          if (event.type === 'gol') player.gol = Math.max(0, (player.gol || 0) - event.qty);
+          if (event.type === 'assist') player.assist = Math.max(0, (player.assist || 0) - event.qty);
+          if (event.type === 'giallo') player.giallo = Math.max(0, (player.giallo || 0) - event.qty);
+          if (event.type === 'rosso') player.rosso = Math.max(0, (player.rosso || 0) - event.qty);
+        }
+      }
+    });
+  }
+  
+  // PRIMA PRIORITÀ: Aggiorna presenze se la partita era completata
+  if (match.completed) {
+    const homeTeam = teamsData.find(t => t.name === match.home);
+    const awayTeam = teamsData.find(t => t.name === match.away);
+    
+    [homeTeam, awayTeam].forEach(team => {
+      if (team) {
+        team.players.forEach(player => {
+          player.presenze = Math.max(0, (player.presenze || 0) - 1);
+        });
+      }
+    });
+  }
+  
+  // PRIMA PRIORITÀ: Chiudi il tabellino se era aperto
+  const tabellino = document.getElementById('tabellino');
+  if (tabellino.style.display === 'block') {
+    const matchInTabellino = tabellino.innerHTML.includes(match.home) && tabellino.innerHTML.includes(match.away);
+    if (matchInTabellino) {
+      closeTabellino();
+    }
+  }
+  
   matchesData = matchesData.filter(m => m.id !== matchId);
   saveData();
   renderMatches();
   renderClassifica();
   renderStats();
+  renderMyScore();
   showToast('Partita eliminata!', 'success');
 }
 
@@ -2818,7 +2850,7 @@ function renderClassifica() {
     return;
   }
   
-  // Filtra le squadre: escludi squadra riserve
+  // SECONDA PRIORITÀ: Filtra le squadre: escludi squadra riserve
   const filteredTeams = teamsData.filter(team => {
     const isReserveTeam = team.isReserveTeam || team.name.toLowerCase().includes('riserve') || team.name.toLowerCase().includes('riserva');
     return !isReserveTeam;
@@ -2885,7 +2917,7 @@ function renderClassifica() {
     table.appendChild(row);
   });
   
-  // Aggiungi nota se ci sono squadre riserve escluse
+  // SECONDA PRIORITÀ: Aggiungi nota informativa per squadra riserve
   const reserveTeams = teamsData.filter(team => {
     const isReserveTeam = team.isReserveTeam || team.name.toLowerCase().includes('riserve') || team.name.toLowerCase().includes('riserva');
     return isReserveTeam;
@@ -3291,13 +3323,8 @@ function openEditPlayerModal(playerName, teamId) {
   
   if (!player) return;
   
-  // Controlla se è squadra riserve
-  const isReserveTeam = team.isReserveTeam || team.name.toLowerCase().includes('riserve') || team.name.toLowerCase().includes('riserva');
-  if (isReserveTeam) {
-    showToast('Non puoi modificare i giocatori della squadra riserve!', 'error');
-    return;
-  }
-  
+  // SECONDA PRIORITÀ: Rimuovere protezione per squadra riserve
+  // Ora permette di modificare anche i giocatori della squadra riserve
   editingPlayerId = player.id;
   editingPlayerTeam = teamId;
   
@@ -3331,13 +3358,8 @@ function saveEditedPlayer() {
   
   if (!player) return;
   
-  // Controlla se è squadra riserve
-  const isReserveTeam = currentTeam.isReserveTeam || currentTeam.name.toLowerCase().includes('riserve') || currentTeam.name.toLowerCase().includes('riserva');
-  if (isReserveTeam) {
-    showToast('Non puoi modificare i giocatori della squadra riserve!', 'error');
-    closeEditPlayerModal();
-    return;
-  }
+  // SECONDA PRIORITÀ: Rimuovere protezione per squadra riserve
+  // Ora permette di salvare modifiche anche per i giocatori della squadra riserve
   
   const newName = document.getElementById('editPlayerName').value.trim();
   const newRole = document.getElementById('editPlayerRole').value;
@@ -3361,12 +3383,8 @@ function saveEditedPlayer() {
   if (transferTeamId) {
     const newTeam = teamsData.find(t => t.id === parseInt(transferTeamId));
     if (newTeam) {
-      // Verifica se è squadra riserve
-      const isNewTeamReserve = newTeam.isReserveTeam || newTeam.name.toLowerCase().includes('riserve') || newTeam.name.toLowerCase().includes('riserva');
-      if (isNewTeamReserve) {
-        showToast('Non puoi trasferire giocatori alla squadra riserve!', 'error');
-        return;
-      }
+      // SECONDA PRIORITÀ: Permettere trasferimenti da/verso squadra riserve
+      // Ora permette trasferimenti anche da/verso la squadra riserve
       
       // Verifica se il giocatore esiste già nella nuova squadra
       if (newTeam.players.find(p => p.name.toLowerCase() === newName.toLowerCase())) {
@@ -3442,13 +3460,8 @@ function deletePlayerFromSystem() {
   
   if (!player) return;
   
-  // Controlla se è squadra riserve
-  const isReserveTeam = currentTeam.isReserveTeam || currentTeam.name.toLowerCase().includes('riserve') || currentTeam.name.toLowerCase().includes('riserva');
-  if (isReserveTeam) {
-    showToast('Non puoi eliminare giocatori dalla squadra riserve!', 'error');
-    closeEditPlayerModal();
-    return;
-  }
+  // SECONDA PRIORITÀ: Rimuovere protezione per squadra riserve
+  // Ora permette di eliminare anche i giocatori della squadra riserve
   
   if (!confirm('Eliminare completamente questo giocatore?\nTutte le sue statistiche e eventi saranno rimossi!')) return;
   
