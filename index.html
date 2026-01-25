@@ -35,6 +35,61 @@ body {
   line-height: 1.6;
 }
 
+/* Media Query per PC */
+@media (min-width: 768px) {
+  body {
+    padding: 20px;
+    background: linear-gradient(135deg, #0a192f 0%, #112240 100%);
+  }
+  
+  main {
+    max-width: 800px !important;
+    margin: 0 auto !important;
+  }
+  
+  .header-content {
+    max-width: 800px !important;
+  }
+  
+  .card {
+    padding: 30px !important;
+  }
+  
+  .teams-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 20px;
+  }
+  
+  .teamCard {
+    margin-bottom: 0;
+  }
+  
+  .match-card {
+    margin-bottom: 20px;
+  }
+  
+  .standing-stats-header {
+    width: 320px !important;
+  }
+  
+  .standing-stats {
+    width: 320px !important;
+  }
+  
+  .stats-grid {
+    grid-template-columns: repeat(4, 1fr) !important;
+  }
+  
+  .nav {
+    justify-content: center;
+  }
+  
+  .nav button {
+    min-width: 100px;
+  }
+}
+
 /* Login Screen */
 .login-screen {
   position: fixed;
@@ -647,7 +702,7 @@ button.danger:hover {
   flex: 1;
 }
 
-/* CLASSIFICA */
+/* CLASSIFICA - AGGIUNTA DIFFERENZA RETI */
 .standing-header {
   display: flex;
   background: rgba(0, 212, 170, 0.1);
@@ -680,7 +735,7 @@ button.danger:hover {
 .standing-stats-header {
   display: flex;
   justify-content: space-between;
-  width: 280px;
+  width: 320px;
 }
 
 .standing-stat-header {
@@ -745,7 +800,7 @@ button.danger:hover {
 .standing-stats {
   display: flex;
   justify-content: space-between;
-  width: 280px;
+  width: 320px;
 }
 
 .standing-stat {
@@ -756,6 +811,20 @@ button.danger:hover {
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+.standing-diff {
+  width: 40px;
+  text-align: center;
+  font-weight: 900;
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(157, 78, 221, 0.1);
+  padding: 6px;
+  border-radius: 10px;
+  color: var(--purple);
 }
 
 .standing-points {
@@ -1273,7 +1342,7 @@ button.danger:hover {
         <div class="palette" id="palette"></div>
         <button onclick="addTeam()">CREA SQUADRA</button>
       </div>
-      <div id="teams"></div>
+      <div id="teams" class="teams-grid"></div>
     </section>
 
     <!-- Partite -->
@@ -1317,6 +1386,7 @@ button.danger:hover {
             <div class="standing-stat-header">P</div>
             <div class="standing-stat-header">GF</div>
             <div class="standing-stat-header">GS</div>
+            <div class="standing-stat-header">DR</div>
             <div class="standing-points-header">PTS</div>
           </div>
         </div>
@@ -1649,7 +1719,7 @@ function saveDataToFirebase() {
     lastUpdate: Date.now(),
     lastUser: currentUser,
     lastUserRole: currentUserRole,
-    version: '5.0-firebase-fixed'
+    version: '5.1-firebase-pc-fixed'
   };
   
   saveLocalData();
@@ -1900,7 +1970,6 @@ function addTeam() {
     players: [],
     createdBy: currentUser,
     createdAt: new Date().toLocaleString(),
-    // Aggiunta: flag per identificare la squadra riserve
     isReserveTeam: name.toLowerCase().includes('riserve') || name.toLowerCase().includes('riserva')
   };
   
@@ -1932,13 +2001,10 @@ function initPalette() {
 }
 
 function renderTeams() {
-  console.log('renderTeams chiamato, teamsData:', teamsData);
-  
   const teamsDiv = document.getElementById('teams');
   const homeSelect = document.getElementById('homeTeam');
   const awaySelect = document.getElementById('awayTeam');
   
-  // Pulisci tutto
   teamsDiv.innerHTML = '';
   
   if (homeSelect) {
@@ -1949,7 +2015,6 @@ function renderTeams() {
     awaySelect.innerHTML = '<option value="">Scegli squadra ospite</option>';
   }
   
-  // Verifica se ci sono squadre
   if (!teamsData || teamsData.length === 0) {
     teamsDiv.innerHTML = `
       <div class="empty-state">
@@ -1960,18 +2025,13 @@ function renderTeams() {
     return;
   }
   
-  // Renderizza ogni squadra
   teamsData.forEach(team => {
-    console.log('Rendering team:', team.name, 'players:', team.players, 'isReserveTeam:', team.isReserveTeam);
-    
     const teamCard = document.createElement('div');
     teamCard.className = 'teamCard';
     teamCard.style.borderLeftColor = team.color;
     
-    // Controlla se è la squadra riserve
     const isReserveTeam = team.isReserveTeam || team.name.toLowerCase().includes('riserve') || team.name.toLowerCase().includes('riserva');
     
-    // Costruisci HTML giocatori
     let playersHTML = '';
     if (team.players && team.players.length > 0) {
       team.players.forEach(player => {
@@ -1997,7 +2057,6 @@ function renderTeams() {
       playersHTML = '<div class="empty-text" style="padding: 20px; text-align: center; color: var(--muted)">Nessun giocatore</div>';
     }
     
-    // Pulsanti admin
     let adminButtons = '';
     if (isAdmin) {
       adminButtons = `
@@ -2034,7 +2093,6 @@ function renderTeams() {
     
     teamsDiv.appendChild(teamCard);
     
-    // Aggiungi ai select per le partite
     if (homeSelect) {
       homeSelect.innerHTML += `<option value="${team.name}">${team.name}</option>`;
     }
@@ -2043,7 +2101,6 @@ function renderTeams() {
     }
   });
   
-  // Inizializza palette
   initPalette();
 }
 
@@ -2066,7 +2123,6 @@ function addPlayer(teamId) {
   
   const team = teamsData.find(t => t.id === teamId);
   
-  // Verifica se il giocatore esiste già in qualsiasi squadra
   for (const t of teamsData) {
     if (t.players.find(p => p.name.toLowerCase() === name.toLowerCase())) {
       showToast(`Il giocatore "${name}" è già registrato in un'altra squadra!`, 'error');
@@ -2100,7 +2156,6 @@ function editTeam(teamId) {
   
   const team = teamsData.find(t => t.id === teamId);
   
-  // Non chiedere conferma per squadre riserve
   const isReserveTeam = team.isReserveTeam || team.name.toLowerCase().includes('riserve') || team.name.toLowerCase().includes('riserva');
   
   const newName = prompt('Nuovo nome squadra:', team.name);
@@ -2111,14 +2166,12 @@ function editTeam(teamId) {
       return;
     }
     
-    // Aggiorna nome nelle partite
     matchesData.forEach(match => {
       if (match.home === team.name) match.home = newName;
       if (match.away === team.name) match.away = newName;
     });
     
     team.name = newName.trim();
-    // Aggiorna flag riserve se necessario
     team.isReserveTeam = newName.toLowerCase().includes('riserve') || newName.toLowerCase().includes('riserva');
     
     saveData();
@@ -2135,17 +2188,14 @@ function deleteTeam(teamId) {
   
   const team = teamsData.find(t => t.id === teamId);
   
-  // Non chiedere conferma per squadre riserve
   const isReserveTeam = team.isReserveTeam || team.name.toLowerCase().includes('riserve') || team.name.toLowerCase().includes('riserva');
   
   if (!confirm('Eliminare questa squadra e tutti i suoi giocatori?\nQuesta azione è irreversibile!')) return;
   
   const teamName = team.name;
   
-  // Rimuovi squadra
   teamsData = teamsData.filter(t => t.id !== teamId);
   
-  // Rimuovi partite della squadra
   matchesData = matchesData.filter(m => m.home !== teamName && m.away !== teamName);
   
   saveData();
@@ -2213,7 +2263,6 @@ function deleteMatch(matchId) {
   
   const match = matchesData.find(m => m.id === matchId);
   
-  // PRIMA PRIORITÀ: Rimuovi eventi dalle statistiche dei giocatori
   if (match.events && match.events.length > 0) {
     match.events.forEach(event => {
       const team = teamsData.find(t => t.name === event.team);
@@ -2229,7 +2278,6 @@ function deleteMatch(matchId) {
     });
   }
   
-  // PRIMA PRIORITÀ: Aggiorna presenze se la partita era completata
   if (match.completed) {
     const homeTeam = teamsData.find(t => t.name === match.home);
     const awayTeam = teamsData.find(t => t.name === match.away);
@@ -2243,7 +2291,6 @@ function deleteMatch(matchId) {
     });
   }
   
-  // PRIMA PRIORITÀ: Chiudi il tabellino se era aperto
   const tabellino = document.getElementById('tabellino');
   if (tabellino.style.display === 'block') {
     const matchInTabellino = tabellino.innerHTML.includes(match.home) && tabellino.innerHTML.includes(match.away);
@@ -2275,7 +2322,6 @@ function renderMatches() {
     return;
   }
   
-  // Ordina per data (più recenti prima)
   matchesData.sort((a, b) => {
     const dateA = new Date(a.date + 'T' + a.time);
     const dateB = new Date(b.date + 'T' + b.time);
@@ -2673,7 +2719,6 @@ function saveEditedEvent() {
   const newQty = parseInt(document.getElementById('editEventQty').value) || 0;
   const newType = document.getElementById('editEventType').value;
   
-  // Rimuovi evento vecchio dalle statistiche
   const t = teamsData.find(team => team.name === event.team);
   if (t) {
     const p = t.players.find(player => player.name === event.player);
@@ -2693,13 +2738,11 @@ function saveEditedEvent() {
     }
   }
   
-  // Aggiorna evento
   event.qty = newQty;
   event.type = newType;
   event.editedBy = currentUser;
   event.editedAt = new Date().toLocaleString();
   
-  // Aggiungi evento aggiornato
   if (t) {
     const p = t.players.find(player => player.name === event.player);
     if (p) {
@@ -2833,7 +2876,7 @@ function removeEvent(matchId, eventId) {
   showToast('Evento rimosso!', 'success');
 }
 
-// ================ CLASSIFICA ================
+// ================ CLASSIFICA CON DIFFERENZA RETI ================
 function renderClassifica() {
   const table = document.getElementById('table');
   if (!table) return;
@@ -2850,7 +2893,6 @@ function renderClassifica() {
     return;
   }
   
-  // SECONDA PRIORITÀ: Filtra le squadre: escludi squadra riserve
   const filteredTeams = teamsData.filter(team => {
     const isReserveTeam = team.isReserveTeam || team.name.toLowerCase().includes('riserve') || team.name.toLowerCase().includes('riserva');
     return !isReserveTeam;
@@ -2891,12 +2933,20 @@ function renderClassifica() {
     };
   });
   
-  standings.sort((a, b) => b.punti - a.punti || b.dr - a.dr || b.gf - a.gf);
+  standings.sort((a, b) => {
+    if (b.punti !== a.punti) return b.punti - a.punti;
+    if (b.dr !== a.dr) return b.dr - a.dr;
+    return b.gf - a.gf;
+  });
   
   standings.forEach((standing, index) => {
     const row = document.createElement('div');
     row.className = 'standing-row';
     row.style.borderLeftColor = standing.team.color;
+    
+    const drColor = standing.dr > 0 ? 'var(--success)' : 
+                    standing.dr < 0 ? 'var(--danger)' : 'var(--muted)';
+    const drSign = standing.dr > 0 ? '+' : '';
     
     row.innerHTML = `
       <div class="standing-pos">${index + 1}</div>
@@ -2910,6 +2960,7 @@ function renderClassifica() {
         <div class="standing-stat">${standing.perse}</div>
         <div class="standing-stat">${standing.gf}</div>
         <div class="standing-stat">${standing.gs}</div>
+        <div class="standing-diff" style="color: ${drColor}">${drSign}${standing.dr}</div>
         <div class="standing-points">${standing.punti}</div>
       </div>
     `;
@@ -2917,7 +2968,6 @@ function renderClassifica() {
     table.appendChild(row);
   });
   
-  // SECONDA PRIORITÀ: Aggiungi nota informativa per squadra riserve
   const reserveTeams = teamsData.filter(team => {
     const isReserveTeam = team.isReserveTeam || team.name.toLowerCase().includes('riserve') || team.name.toLowerCase().includes('riserva');
     return isReserveTeam;
@@ -3323,8 +3373,6 @@ function openEditPlayerModal(playerName, teamId) {
   
   if (!player) return;
   
-  // SECONDA PRIORITÀ: Rimuovere protezione per squadra riserve
-  // Ora permette di modificare anche i giocatori della squadra riserve
   editingPlayerId = player.id;
   editingPlayerTeam = teamId;
   
@@ -3358,9 +3406,6 @@ function saveEditedPlayer() {
   
   if (!player) return;
   
-  // SECONDA PRIORITÀ: Rimuovere protezione per squadra riserve
-  // Ora permette di salvare modifiche anche per i giocatori della squadra riserve
-  
   const newName = document.getElementById('editPlayerName').value.trim();
   const newRole = document.getElementById('editPlayerRole').value;
   const newGol = parseInt(document.getElementById('editPlayerGol').value) || 0;
@@ -3369,7 +3414,6 @@ function saveEditedPlayer() {
   const newRosso = parseInt(document.getElementById('editPlayerRosso').value) || 0;
   const transferTeamId = document.getElementById('editPlayerTeam').value;
   
-  // Verifica se il nome è già usato in un'altra squadra
   if (newName !== player.name) {
     for (const team of teamsData) {
       if (team.id !== editingPlayerTeam && team.players.find(p => p.name.toLowerCase() === newName.toLowerCase())) {
@@ -3379,23 +3423,16 @@ function saveEditedPlayer() {
     }
   }
   
-  // Trasferimento giocatore
   if (transferTeamId) {
     const newTeam = teamsData.find(t => t.id === parseInt(transferTeamId));
     if (newTeam) {
-      // SECONDA PRIORITÀ: Permettere trasferimenti da/verso squadra riserve
-      // Ora permette trasferimenti anche da/verso la squadra riserve
-      
-      // Verifica se il giocatore esiste già nella nuova squadra
       if (newTeam.players.find(p => p.name.toLowerCase() === newName.toLowerCase())) {
         showToast(`Il giocatore "${newName}" esiste già nella squadra ${newTeam.name}!`, 'error');
         return;
       }
       
-      // Rimuovi dalla vecchia squadra
       currentTeam.players = currentTeam.players.filter(p => p.id !== editingPlayerId);
       
-      // Aggiorna eventi delle partite per riflettere il trasferimento
       matchesData.forEach(match => {
         match.events.forEach(event => {
           if (event.player === player.name && event.team === currentTeam.name) {
@@ -3405,7 +3442,6 @@ function saveEditedPlayer() {
         });
       });
       
-      // Aggiungi alla nuova squadra
       player.name = newName;
       player.role = newRole;
       player.gol = newGol;
@@ -3421,11 +3457,9 @@ function saveEditedPlayer() {
       showToast(`Giocatore trasferito da ${currentTeam.name} a ${newTeam.name}!`, 'success');
     }
   } else {
-    // Solo modifica dati nella stessa squadra
     const oldName = player.name;
     
     if (oldName !== newName) {
-      // Aggiorna nome in tutti gli eventi
       matchesData.forEach(match => {
         match.events.forEach(event => {
           if (event.player === oldName && event.team === currentTeam.name) {
@@ -3460,17 +3494,12 @@ function deletePlayerFromSystem() {
   
   if (!player) return;
   
-  // SECONDA PRIORITÀ: Rimuovere protezione per squadra riserve
-  // Ora permette di eliminare anche i giocatori della squadra riserve
-  
   if (!confirm('Eliminare completamente questo giocatore?\nTutte le sue statistiche e eventi saranno rimossi!')) return;
   
-  // Rimuovi tutti gli eventi del giocatore
   matchesData.forEach(match => {
     match.events = match.events.filter(event => !(event.player === player.name && event.team === currentTeam.name));
   });
   
-  // Rimuovi il giocatore
   currentTeam.players = currentTeam.players.filter(p => p.id !== editingPlayerId);
   
   saveData();
@@ -3497,7 +3526,6 @@ function updateBackupInfo() {
     totalEvents += m.events ? m.events.length : 0;
   });
   
-  // Admin view
   if (document.getElementById('backupTeamsCount')) {
     document.getElementById('backupTeamsCount').textContent = teamsData.length;
     document.getElementById('backupMatchesCount').textContent = matchesData.length;
@@ -3505,7 +3533,6 @@ function updateBackupInfo() {
     document.getElementById('backupEventsCount').textContent = totalEvents;
   }
   
-  // User view
   if (document.getElementById('userBackupTeamsCount')) {
     document.getElementById('userBackupTeamsCount').textContent = teamsData.length;
     document.getElementById('userBackupMatchesCount').textContent = matchesData.length;
@@ -3526,7 +3553,7 @@ function exportData() {
     lastUpdate: Date.now(),
     exportedBy: currentUser,
     exportedAt: new Date().toISOString(),
-    version: '5.0-firebase-fixed'
+    version: '5.1-firebase-pc-fixed'
   };
   
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
